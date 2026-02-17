@@ -1,0 +1,6 @@
+# Example scenario: Navigate to General settings in the Settings app
+device: "iPhone 16"
+app: "com.apple.Preferences"
+goal: "Navigate to General settings and verify it opens"
+max_steps: 15
+step_delay: 1.5

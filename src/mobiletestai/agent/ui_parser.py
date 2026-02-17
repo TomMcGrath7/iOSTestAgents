@@ -1,0 +1,207 @@
+"""Parse accessibility tree text into structured elements with pre-calculated centers."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+
+@dataclass
+class UIElement:
+    """A parsed UI element with pre-calculated center coordinates."""
+
+    index: int
+    element_type: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+    center_x: int
+    center_y: int
+    traits: str = ""
+
+    @property
+    def tappable(self) -> bool:
+        """Elements likely to respond to taps."""
+        return self.element_type in {
+            "Button", "Cell", "Link", "TextField", "SecureTextField",
+            "Switch", "Toggle", "Slider", "SearchField", "StaticText",
+            "Icon", "Image", "Tab", "SegmentedControl", "PopUpButton",
+            "MenuButton", "Key",
+        }
+
+
+# Pattern: TypeName 'label' or id='label' {{x, y}, {w, h}} traits
+_ELEMENT_RE = re.compile(
+    r"^\s*(\w+)\s+"                         # element type
+    r"(?:(?:id=)?'([^']*)')?\s*"            # optional label (with or without id= prefix)
+    r"\{\{(\d+),\s*(\d+)\},\s*\{(\d+),\s*(\d+)\}\}"  # frame {{x,y},{w,h}}
+    r"(.*)?$"                               # optional trailing traits
+)
+
+
+def parse_ui_elements(ui_state: str) -> list[UIElement]:
+    """Parse raw accessibility tree text into a list of UIElements."""
+    elements = []
+    idx = 1
+    for line in ui_state.splitlines():
+        m = _ELEMENT_RE.match(line.strip())
+        if not m:
+            continue
+        el_type = m.group(1)
+        label = m.group(2) or ""
+        x, y, w, h = int(m.group(3)), int(m.group(4)), int(m.group(5)), int(m.group(6))
+        traits = (m.group(7) or "").strip()
+
+        if w == 0 or h == 0:
+            continue
+
+        elem = UIElement(
+            index=idx,
+            element_type=el_type,
+            label=label,
+            x=x, y=y, width=w, height=h,
+            center_x=x + w // 2,
+            center_y=y + h // 2,
+            traits=traits,
+        )
+        elements.append(elem)
+        idx += 1
+    return elements
+
+
+def build_element_list(
+    elements: list[UIElement],
+    tappable_only: bool = True,
+    max_elements: int = 25,
+    screen_height: int = 874,
+) -> str:
+    """Format elements as a numbered list for the LLM prompt.
+
+    Only includes labeled, tappable elements to keep the list focused.
+    Prioritizes: action buttons (Continue/Next/Submit/Done) + on-screen elements.
+    Caps at max_elements to avoid overwhelming small models.
+    """
+    # Separate elements into priority tiers
+    action_buttons: list[UIElement] = []  # Continue, Next, Submit, etc.
+    regular: list[UIElement] = []
+
+    action_keywords = {"continue", "next", "submit", "done", "save", "confirm",
+                       "sign up", "sign in", "log in", "create", "send", "ok",
+                       "accept", "agree", "skip", "get started", "proceed"}
+
+    for el in elements:
+        if tappable_only and not el.tappable:
+            continue
+        if not el.label:
+            continue
+        label_lower = el.label.lower()
+        if any(kw in label_lower for kw in action_keywords):
+            action_buttons.append(el)
+        else:
+            regular.append(el)
+
+    def _format(el: UIElement) -> str:
+        traits_part = f" {el.traits}" if el.traits else ""
+        return f"[{el.index}] {el.element_type} '{el.label}' center=({el.center_x}, {el.center_y}){traits_part}"
+
+    lines = []
+    # Always include action buttons first (they're most important)
+    for el in action_buttons:
+        lines.append(_format(el))
+
+    # Fill remaining slots with regular elements
+    remaining = max_elements - len(lines)
+    for el in regular[:remaining]:
+        lines.append(_format(el))
+
+    total_tappable = len(action_buttons) + len(regular)
+    if total_tappable > max_elements:
+        lines.append(f"... ({total_tappable - len(lines)} more elements, use swipe_up to scroll)")
+
+    return "\n".join(lines)
+
+
+def detect_screen_title(elements: list[UIElement]) -> str:
+    """Extract the current screen title from NavigationBar or StaticText near top."""
+    # Look for NavigationBar with a label
+    for el in elements:
+        if el.element_type == "NavigationBar" and el.label:
+            return el.label
+    # Fallback: look for prominent StaticText near the top of the screen (y < 120)
+    for el in elements:
+        if el.element_type == "StaticText" and el.label and el.y < 120:
+            return el.label
+    return ""
+
+
+def check_goal_reached(goal: str, screen_title: str, elements: list[UIElement]) -> bool:
+    """Check if the current screen state indicates the goal has been reached.
+
+    Uses simple heuristics:
+    - For "Navigate to X > Y > Z" goals, check if screen title matches the last segment
+    - For goals mentioning a screen name, check if we're on that screen
+    """
+    if not screen_title:
+        return False
+
+    goal_lower = goal.lower()
+    screen_lower = screen_title.lower()
+
+    # Extract destination from "Navigate to X > Y" or "Go to X > Y" patterns
+    for prefix in ("navigate to ", "go to ", "open "):
+        if goal_lower.startswith(prefix):
+            destination = goal_lower[len(prefix):]
+            # For "General > About", the final destination is "About"
+            if ">" in destination:
+                final = destination.split(">")[-1].strip()
+            else:
+                final = destination.strip()
+            if final and final in screen_lower:
+                return True
+
+    # Generic fallback (only for goals without ">" path notation)
+    if ">" not in goal_lower and len(screen_lower) >= 3 and screen_lower in goal_lower:
+        return True
+
+    return False
+
+
+def resolve_element(
+    elements: list[UIElement],
+    *,
+    index: int | None = None,
+    target: str | None = None,
+) -> tuple[int, int] | None:
+    """Resolve an element reference to (center_x, center_y).
+
+    Supports:
+    - index: element number from the numbered list (e.g., 1, 2, 3)
+    - target: label text to fuzzy-match against element labels
+    """
+    if index is not None:
+        for el in elements:
+            if el.index == index:
+                return el.center_x, el.center_y
+        return None
+
+    if target is not None:
+        target_lower = target.lower().strip("'\"")
+        # Exact label match first
+        for el in elements:
+            if el.label and el.label.lower() == target_lower:
+                return el.center_x, el.center_y
+        # Target contained in label or label contained in target (min 3 chars)
+        for el in elements:
+            if el.label and len(el.label) >= 3:
+                if target_lower in el.label.lower() or el.label.lower() in target_lower:
+                    return el.center_x, el.center_y
+        # Match element type + label pattern like "Button 'General'"
+        for el in elements:
+            if el.label:
+                full = f"{el.element_type} '{el.label}'".lower()
+                if target_lower == full or target_lower in full:
+                    return el.center_x, el.center_y
+
+    return None

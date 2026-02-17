@@ -1,0 +1,29 @@
+"""Base protocol for device backends."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+
+class DeviceError(Exception):
+    """Base error for all device backends."""
+
+
+@runtime_checkable
+class DeviceBackend(Protocol):
+    """Protocol that all device backends must implement."""
+
+    def describe_ui(self) -> str: ...
+    def tap(self, x: int, y: int) -> None: ...
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.3) -> None: ...
+    def type_text(self, text: str) -> None: ...
+    def press_button(self, button: str) -> None: ...
+    def start(self, timeout: int = 30, output_dir: str | Path = "output") -> None: ...
+    def stop(self) -> None: ...
+
+    @staticmethod
+    def is_available() -> bool: ...
+
+    @staticmethod
+    def is_running() -> bool: ...

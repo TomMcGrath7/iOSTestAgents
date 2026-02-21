@@ -107,6 +107,96 @@ def run(
 
 
 @app.command()
+def scenario(
+    scenario_file: str = typer.Argument(..., help="Path to scenario YAML file"),
+    output: str = typer.Option("output", "--output", "-o", help="Base output directory"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging"),
+    backend: Optional[str] = typer.Option(
+        None, "--backend", "-b", help="Override backend: testbridge or xcodebuildmcp"
+    ),
+    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider override"),
+    model: Optional[str] = typer.Option(None, "--model", help="LLM model override"),
+) -> None:
+    """Run a multi-device scenario from a YAML file."""
+    from pydantic import ValidationError
+
+    from mobiletestai.orchestrator.coordinator import Orchestrator
+    from mobiletestai.orchestrator.scenario import load_scenario
+
+    setup_logging(verbose)
+
+    # Load scenario
+    try:
+        sc = load_scenario(scenario_file)
+    except FileNotFoundError as exc:
+        console.print(f"[red]Scenario file not found: {exc}[/red]")
+        raise typer.Exit(code=1)
+    except ValidationError as exc:
+        console.print(f"[red]Invalid scenario YAML:[/red]\n{exc}")
+        raise typer.Exit(code=1)
+
+    # Apply CLI overrides
+    if backend is not None:
+        sc = sc.model_copy(update={"backend": backend})
+    if provider is not None:
+        sc = sc.model_copy(update={"provider": provider})
+    if model is not None:
+        sc = sc.model_copy(update={"model": model})
+
+    # Print scenario summary
+    console.print()
+    summary = Table(title=f"Scenario: {sc.name}")
+    summary.add_column("Setting", style="bold")
+    summary.add_column("Value")
+    summary.add_row("App", sc.app_bundle_id)
+    summary.add_row("Players", str(sc.players))
+    summary.add_row("Device", sc.device)
+    summary.add_row("Backend", sc.backend)
+    summary.add_row("Steps", str(len(sc.steps)))
+    summary.add_row("Max steps/step", str(sc.max_steps))
+    console.print(summary)
+    console.print()
+
+    # Run
+    orch = Orchestrator(sc, output_dir=Path(output))
+    result = orch.run()
+
+    # Print results table
+    console.print()
+    table = Table(title="Orchestrator Result")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Run ID", result.run_id)
+    table.add_row("Scenario", result.scenario_name)
+    table.add_row("Status", result.status)
+    table.add_row("Players", str(len(result.players)))
+    table.add_row(
+        "Tokens",
+        f"{result.total_tokens.input_tokens:,} in / {result.total_tokens.output_tokens:,} out",
+    )
+    table.add_row("Est. Cost", f"${result.estimated_cost:.4f}")
+    if result.captured_variables:
+        table.add_row("Captured Vars", str(result.captured_variables))
+    console.print(table)
+
+    # Per-player status
+    console.print()
+    for player_num, player_result in sorted(result.players.items()):
+        color = "green" if player_result.status == "success" else "red"
+        console.print(
+            f"  Player {player_num}: [{color}]{player_result.status}[/{color}] "
+            f"(UDID: {player_result.device_udid[:8]}...)"
+        )
+
+    # Report location
+    run_dir = Path(output) / result.run_id
+    console.print(f"\nReport: {run_dir / 'report.json'}")
+
+    if result.status != "success":
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def doctor() -> None:
     """Check that all dependencies are available."""
     setup_logging(False)

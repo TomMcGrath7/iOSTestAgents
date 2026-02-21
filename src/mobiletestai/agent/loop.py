@@ -26,7 +26,7 @@ from mobiletestai.agent.ui_parser import (
 )
 from mobiletestai.device.base import DeviceBackend, DeviceError
 from mobiletestai.device.bridge import BridgeDevice
-from mobiletestai.device.simulator import SimulatorManager
+from mobiletestai.device.simulator import SimulatorError, SimulatorManager
 from mobiletestai.llm.registry import get_provider
 from mobiletestai.util.logging import get_logger
 
@@ -42,7 +42,7 @@ def _encode_image(path: Path) -> str:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-def _parse_action(raw: str, ui_elements: list | None = None) -> AgentAction:
+def _parse_action(raw: str, ui_elements: list | None = None, shown_indices: set[int] | None = None) -> AgentAction:
     """Parse LLM response into AgentAction, normalizing common format variations.
 
     If ui_elements is provided, resolves "element" numbers and "target" names
@@ -74,10 +74,14 @@ def _parse_action(raw: str, ui_elements: list | None = None) -> AgentAction:
     if element_ref is not None and data.get("x") is None and ui_elements:
         try:
             idx = int(element_ref)
-            result = resolve_element(ui_elements, index=idx)
-            if result:
-                data["x"], data["y"] = result
-                logger.info(f"Resolved element [{idx}] to ({result[0]}, {result[1]})")
+            # Only resolve elements the LLM was actually shown
+            if shown_indices and idx not in shown_indices:
+                logger.warning(f"LLM referenced element [{idx}] which was not in the shown list — ignoring")
+            else:
+                result = resolve_element(ui_elements, index=idx)
+                if result:
+                    data["x"], data["y"] = result
+                    logger.info(f"Resolved element [{idx}] to ({result[0]}, {result[1]})")
         except (ValueError, TypeError):
             pass
 
@@ -183,7 +187,15 @@ def run_agent(
     if reset:
         sim.reset_app(device.udid, bundle_id, app_path)
     else:
-        sim.launch_app(device.udid, bundle_id)
+        try:
+            sim.launch_app(device.udid, bundle_id)
+        except SimulatorError:
+            if app_path:
+                logger.info("App not installed, installing from app_path before launch")
+                sim.install_app(device.udid, app_path)
+                sim.launch_app(device.udid, bundle_id)
+            else:
+                raise
 
     # Optional recording
     recording_proc = None
@@ -201,7 +213,18 @@ def run_agent(
             logger.info(f"--- Step {step_num}/{max_steps} ---")
 
             # 1. Observe
-            ui_state = backend.describe_ui()
+            try:
+                ui_state = backend.describe_ui()
+            except (DeviceError, Exception) as exc:
+                logger.warning(f"describe_ui failed: {exc} — app may have left foreground, relaunching")
+                try:
+                    sim.terminate_app(device.udid, bundle_id)
+                except Exception:
+                    pass
+                time.sleep(1.0)
+                sim.launch_app(device.udid, bundle_id)
+                time.sleep(2.0)
+                ui_state = backend.describe_ui()
             logger.info(f"UI state ({len(ui_state)} chars): {ui_state[:300]}..."
                         if len(ui_state) > 300 else f"UI state ({len(ui_state)} chars): {ui_state}")
             screenshot_path = output_path / f"{result.run_id}_step{step_num:03d}.png"
@@ -231,7 +254,7 @@ def run_agent(
 
             # 3. Parse UI elements and build numbered list
             ui_elements = parse_ui_elements(ui_state)
-            element_list = build_element_list(ui_elements)
+            element_list, shown_element_indices = build_element_list(ui_elements)
             screen_title = detect_screen_title(ui_elements)
             tappable_count = element_list.count(chr(10)) + 1 if element_list else 0
             logger.info(f"Parsed {len(ui_elements)} UI elements, {tappable_count} tappable, screen='{screen_title}'")
@@ -317,7 +340,7 @@ def run_agent(
                     )
                     raw_text = llm_response.text
                     logger.info(f"LLM raw response: {raw_text[:500]}")
-                    action = _parse_action(raw_text, ui_elements=ui_elements)
+                    action = _parse_action(raw_text, ui_elements=ui_elements, shown_indices=shown_element_indices)
                     break
                 except (json.JSONDecodeError, ValidationError, KeyError) as exc:
                     logger.warning(f"Parse attempt {attempt + 1} failed: {exc}")

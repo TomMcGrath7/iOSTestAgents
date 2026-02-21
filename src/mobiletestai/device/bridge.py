@@ -14,6 +14,13 @@ from mobiletestai.util.logging import get_logger
 
 logger = get_logger(__name__)
 
+# TODO: Multi-device support requires a configurable port per BridgeDevice instance.
+# Currently hardcoded to 8615, so only one TestBridge can run per host.
+# To support multi-device orchestration with TestBridge:
+#   1. Add --port argument to HTTPServer.swift's NWListener setup
+#   2. Accept port parameter in BridgeDevice.__init__
+#   3. Pass unique ports from the Orchestrator (e.g. 8615, 8616, 8617, ...)
+# Until then, use the XcodeBuildMCP backend (stateless per-UDID CLI) for multi-device scenarios.
 BRIDGE_PORT = 8615
 BRIDGE_URL = f"http://localhost:{BRIDGE_PORT}"
 TESTBRIDGE_PROJECT = Path(__file__).resolve().parent.parent.parent.parent / "testbridge" / "TestBridge.xcodeproj"

@@ -74,6 +74,53 @@ class SimulatorManager:
         matches.sort(key=lambda d: d.runtime, reverse=True)
         return matches[0]
 
+    def list_devices_by_name(self, name: str) -> list[DeviceInfo]:
+        """Return all available simulators matching name, sorted newest runtime first."""
+        devices = self.list_devices()
+        matches = [d for d in devices if d.name == name]
+        matches.sort(key=lambda d: d.runtime, reverse=True)
+        return matches
+
+    def create_device(self, name: str) -> DeviceInfo:
+        """Create a new simulator using the latest available iOS runtime.
+
+        Queries simctl for device types and runtimes; raises SimulatorError if not found.
+        Returns DeviceInfo for the newly created simulator.
+        """
+        # Find latest available iOS runtime
+        raw = self._run(["list", "runtimes", "available", "-j"])
+        data = json.loads(raw)
+        ios_runtimes = [
+            r for r in data.get("runtimes", [])
+            if r.get("isAvailable", False) and "iOS" in r.get("name", "")
+        ]
+        if not ios_runtimes:
+            raise SimulatorError("No available iOS runtimes found")
+        ios_runtimes.sort(key=lambda r: r.get("version", ""), reverse=True)
+        runtime_id = ios_runtimes[0]["identifier"]
+
+        # Find device type matching name
+        raw = self._run(["list", "devicetypes", "-j"])
+        data = json.loads(raw)
+        device_types = [
+            dt for dt in data.get("devicetypes", [])
+            if dt.get("name") == name
+        ]
+        if not device_types:
+            raise SimulatorError(f"No device type found for '{name}'")
+        device_type_id = device_types[0]["identifier"]
+
+        # Create the device
+        udid = self._run(["create", name, device_type_id, runtime_id]).strip()
+        logger.info(f"Created simulator '{name}' with UDID {udid}")
+
+        # Return DeviceInfo by looking up the newly created device
+        devices = self.list_devices()
+        for d in devices:
+            if d.udid == udid:
+                return d
+        raise SimulatorError(f"Created device {udid} not found in device list")
+
     def boot(self, udid: str) -> None:
         logger.info(f"Booting simulator {udid}")
         try:

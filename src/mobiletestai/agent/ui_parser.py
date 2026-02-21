@@ -71,17 +71,41 @@ def parse_ui_elements(ui_state: str) -> list[UIElement]:
     return elements
 
 
+def _is_child_element(el: UIElement, elements: list[UIElement]) -> bool:
+    """Check if an element is visually contained within a Button/Cell parent.
+
+    If a Button's frame fully contains this element, it's a child — tapping
+    the parent Button is sufficient, so we skip the child to save list slots.
+    """
+    if el.element_type in ("Button", "Cell", "Switch", "Toggle"):
+        return False  # Top-level interactive elements are never children
+    for other in elements:
+        if other is el:
+            continue
+        if other.element_type not in ("Button", "Cell"):
+            continue
+        # Check if el is fully contained within other's frame
+        if (other.x <= el.x and other.y <= el.y
+                and other.x + other.width >= el.x + el.width
+                and other.y + other.height >= el.y + el.height):
+            return True
+    return False
+
+
 def build_element_list(
     elements: list[UIElement],
     tappable_only: bool = True,
-    max_elements: int = 25,
+    max_elements: int = 30,
     screen_height: int = 874,
-) -> str:
+) -> tuple[str, set[int]]:
     """Format elements as a numbered list for the LLM prompt.
 
     Only includes labeled, tappable elements to keep the list focused.
-    Prioritizes: action buttons (Continue/Next/Submit/Done) + on-screen elements.
+    Filters out child elements (Images/StaticTexts inside Buttons) to avoid
+    wasting slots. Prioritizes action buttons.
     Caps at max_elements to avoid overwhelming small models.
+
+    Returns (formatted_text, set_of_shown_element_indices).
     """
     # Separate elements into priority tiers
     action_buttons: list[UIElement] = []  # Continue, Next, Submit, etc.
@@ -89,12 +113,17 @@ def build_element_list(
 
     action_keywords = {"continue", "next", "submit", "done", "save", "confirm",
                        "sign up", "sign in", "log in", "create", "send", "ok",
-                       "accept", "agree", "skip", "get started", "proceed"}
+                       "accept", "agree", "skip", "get started", "proceed",
+                       "report", "bug", "feedback", "feature", "request",
+                       "help", "support", "contact"}
 
     for el in elements:
         if tappable_only and not el.tappable:
             continue
         if not el.label:
+            continue
+        # Skip child elements that are inside a parent Button/Cell
+        if _is_child_element(el, elements):
             continue
         label_lower = el.label.lower()
         if any(kw in label_lower for kw in action_keywords):
@@ -107,20 +136,24 @@ def build_element_list(
         return f"[{el.index}] {el.element_type} '{el.label}' center=({el.center_x}, {el.center_y}){traits_part}"
 
     lines = []
+    shown_indices: set[int] = set()
+
     # Always include action buttons first (they're most important)
     for el in action_buttons:
         lines.append(_format(el))
+        shown_indices.add(el.index)
 
     # Fill remaining slots with regular elements
     remaining = max_elements - len(lines)
     for el in regular[:remaining]:
         lines.append(_format(el))
+        shown_indices.add(el.index)
 
     total_tappable = len(action_buttons) + len(regular)
     if total_tappable > max_elements:
         lines.append(f"... ({total_tappable - len(lines)} more elements, use swipe_up to scroll)")
 
-    return "\n".join(lines)
+    return "\n".join(lines), shown_indices
 
 
 def detect_screen_title(elements: list[UIElement]) -> str:
@@ -139,15 +172,20 @@ def detect_screen_title(elements: list[UIElement]) -> str:
 def check_goal_reached(goal: str, screen_title: str, elements: list[UIElement]) -> bool:
     """Check if the current screen state indicates the goal has been reached.
 
-    Uses simple heuristics:
-    - For "Navigate to X > Y > Z" goals, check if screen title matches the last segment
-    - For goals mentioning a screen name, check if we're on that screen
+    Uses simple heuristics — only for simple single-destination goals like
+    "Navigate to X > Y > Z". Multi-step goals (containing "and", commas, or
+    action verbs beyond navigation) are left to the LLM to judge completion.
     """
     if not screen_title:
         return False
 
     goal_lower = goal.lower()
     screen_lower = screen_title.lower()
+
+    # Skip auto-detection for multi-step or complex goals — let the LLM decide
+    multi_step_indicators = [" and ", ", ", "then ", "create", "send", "submit", "fill", "enter", "sign", "log in", "register"]
+    if any(indicator in goal_lower for indicator in multi_step_indicators):
+        return False
 
     # Extract destination from "Navigate to X > Y" or "Go to X > Y" patterns
     for prefix in ("navigate to ", "go to ", "open "):
@@ -160,10 +198,6 @@ def check_goal_reached(goal: str, screen_title: str, elements: list[UIElement]) 
                 final = destination.strip()
             if final and final in screen_lower:
                 return True
-
-    # Generic fallback (only for goals without ">" path notation)
-    if ">" not in goal_lower and len(screen_lower) >= 3 and screen_lower in goal_lower:
-        return True
 
     return False
 

@@ -120,22 +120,26 @@ class BridgeDevice:
 
         # Poll /health until ready
         start_time = time.time()
-        while time.time() - start_time < timeout:
-            if self._process.poll() is not None:
-                raise BridgeError(
-                    f"xcodebuild exited early (rc={self._process.returncode}). "
-                    f"Check {log_file} for details."
-                )
-            try:
-                result = self._request("GET", "/health")
-                if isinstance(result, dict) and result.get("status") == "ok":
-                    logger.info("TestBridge is ready")
-                    return
-            except BridgeError:
-                pass
-            time.sleep(1.0)
+        try:
+            while time.time() - start_time < timeout:
+                if self._process.poll() is not None:
+                    raise BridgeError(
+                        f"xcodebuild exited early (rc={self._process.returncode}). "
+                        f"Check {log_file} for details."
+                    )
+                try:
+                    result = self._request("GET", "/health")
+                    if isinstance(result, dict) and result.get("status") == "ok":
+                        logger.info("TestBridge is ready")
+                        return
+                except BridgeError:
+                    pass
+                time.sleep(1.0)
 
-        raise BridgeError(f"TestBridge did not start within {timeout}s. Check {log_file}")
+            raise BridgeError(f"TestBridge did not start within {timeout}s. Check {log_file}")
+        except Exception:
+            self.stop()
+            raise
 
     def stop(self) -> None:
         """Stop the TestBridge xcodebuild process."""

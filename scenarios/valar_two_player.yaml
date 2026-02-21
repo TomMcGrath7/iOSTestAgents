@@ -6,14 +6,14 @@ device: "iPhone 17"
 backend: testbridge
 provider: openai
 model: gpt-4o
-max_steps: 10
+max_steps: 40
 on_failure: continue
 
 steps:
   - player: 1
-    action: "Navigate to Settings and look around the settings screen"
+    action: "Navigate to Settings"
     on_failure: continue
 
   - player: 2
-    action: "Explore the main screen and scroll around to see what content is available"
+    action: "Navigate to Settings"
     on_failure: continue

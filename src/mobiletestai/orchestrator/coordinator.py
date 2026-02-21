@@ -186,6 +186,7 @@ class Orchestrator:
                 app_path=None,
                 backend=self._backends[player_num],
                 vision=True,
+                device_udid=device_info.udid,
             )
         except Exception as exc:
             logger.error(f"Player {player_num} step {step_idx} raised exception: {exc}")
@@ -343,12 +344,12 @@ class Orchestrator:
         else:
             self._result.status = "failure"
 
-        # Estimated cost
-        if self._llm is not None:
-            self._result.estimated_cost = (
-                self._result.total_tokens.input_tokens * self._llm.cost_per_input_token
-                + self._result.total_tokens.output_tokens * self._llm.cost_per_output_token
-            )
+        # Estimated cost — sum from individual run results
+        total_cost = 0.0
+        for player_result in self._result.players.values():
+            for run_result in player_result.step_results.values():
+                total_cost += run_result.estimated_cost
+        self._result.estimated_cost = total_cost
 
     def _write_report(self) -> None:
         """Write the orchestrator result to report.json in the run directory."""

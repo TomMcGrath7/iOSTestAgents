@@ -168,6 +168,7 @@ def run_agent(
     provider: str | None = None,
     backend: DeviceBackend | None = None,
     vision: bool = True,
+    device_udid: str | None = None,
 ) -> RunResult:
     """Run the agent loop: observe → reason → act until goal is met or max steps."""
     output_path = Path(output_dir)
@@ -181,8 +182,12 @@ def run_agent(
     logger.info(f"Using LLM provider: {llm.name}, model: {model}")
 
     # Find and boot device
-    logger.info(f"Finding device: {device_name}")
-    device = sim.find_device(device_name)
+    if device_udid:
+        from mobiletestai.device.simulator import DeviceInfo
+        device = DeviceInfo(name=device_name, udid=device_udid, runtime="", state="")
+    else:
+        logger.info(f"Finding device: {device_name}")
+        device = sim.find_device(device_name)
     result.device = f"{device.name} ({device.udid})"
     sim.boot(device.udid)
 

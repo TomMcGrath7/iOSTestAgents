@@ -1,0 +1,25 @@
+name: multiplayer_game_join
+app_bundle_id: com.example.wingman
+players: 2
+device: "iPhone 16"
+backend: xcodebuildmcp
+max_steps: 25
+step_delay: 1.5
+
+steps:
+  - player: 1
+    action: "Open the app and create a new multiplayer game room"
+    verify: "Room code is visible on screen"
+    capture: room_code
+
+  - player: 2
+    action: "Open the app and join a game room using code {room_code}"
+    verify: "Successfully joined the game lobby"
+
+  - player: [1, 2]
+    action: "Verify the game lobby shows both players connected"
+    parallel: true
+
+  - all_players:
+      verify: "Game is ready to start"
+      on_failure: continue

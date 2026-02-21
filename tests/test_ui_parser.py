@@ -70,20 +70,21 @@ class TestParseUIElements:
 class TestBuildElementList:
     def test_formats_numbered_list(self):
         elements = parse_ui_elements(SAMPLE_UI)
-        result = build_element_list(elements)
+        result, shown = build_element_list(elements)
         assert "[" in result
         assert "center=(" in result
+        assert len(shown) > 0
 
     def test_tappable_only_filters(self):
         elements = parse_ui_elements(SAMPLE_UI)
-        tappable = build_element_list(elements, tappable_only=True)
-        all_elements = build_element_list(elements, tappable_only=False)
+        tappable, _ = build_element_list(elements, tappable_only=True)
+        all_elements, _ = build_element_list(elements, tappable_only=False)
         # Tappable list should be shorter or equal
         assert len(tappable) <= len(all_elements)
 
     def test_includes_button_and_cell(self):
         elements = parse_ui_elements(SAMPLE_UI)
-        result = build_element_list(elements)
+        result, _ = build_element_list(elements)
         assert "Button" in result
         assert "Cell" in result
 

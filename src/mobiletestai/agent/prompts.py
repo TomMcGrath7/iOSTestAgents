@@ -18,8 +18,9 @@ Rules:
 2. Read the Goal carefully. Tap the element that gets you closer to the Goal.
 3. If the element you need is not in the list, use swipe_up to scroll down and reveal more.
 4. If you are on the wrong screen, tap the Back button to go back.
-5. IMPORTANT: When the Current Screen matches the Goal destination, use "done" immediately.
-   Example: Goal is "Navigate to About" and Current Screen is "About" → use done.
+5. IMPORTANT: Only use "done" when ALL parts of the Goal are complete, not just the first part.
+   For multi-step goals like "do X, create Y, and send Z" — you must finish every step before using "done".
+   For simple navigation goals like "Navigate to About", use "done" when you reach that screen.
 """
 
 

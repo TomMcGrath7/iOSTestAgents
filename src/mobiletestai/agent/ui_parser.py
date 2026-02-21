@@ -54,7 +54,12 @@ def parse_ui_elements(ui_state: str) -> list[UIElement]:
     """
     # Detect XcodeBuildMCP JSON format
     if _is_json_ui(ui_state):
-        return _parse_json_ui(ui_state)
+        # Be defensive: if JSON parsing fails, fall back to text format parsing.
+        try:
+            return _parse_json_ui(ui_state)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            # Malformed or unexpected JSON-like input; use text parser instead.
+            pass
     return _parse_text_ui(ui_state)
 
 

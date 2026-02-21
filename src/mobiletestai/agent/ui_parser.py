@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -107,7 +110,8 @@ def _parse_json_ui(ui_state: str) -> list[UIElement]:
 
     try:
         data = json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        logger.warning(f"Failed to parse XcodeBuildMCP JSON UI: {exc}")
         return []
 
     elements: list[UIElement] = []

@@ -164,8 +164,27 @@ class TestExecuteAction:
     def test_execute_swipe_up(self):
         idb = MagicMock()
         action = AgentAction(action=ActionType.SWIPE_UP)
-        _execute_action(action, idb)
+        _execute_action(action, idb, screen_width=393, screen_height=852)
         idb.swipe.assert_called_once()
+        args = idb.swipe.call_args[0]
+        # Center x should be 196, swipe goes from below center to above center
+        assert args[0] == 196  # from_x = center
+        assert args[2] == 196  # to_x = center
+        assert args[1] > args[3]  # from_y > to_y (swipe up)
+
+    def test_execute_swipe_proportional_on_ipad(self):
+        """Swipe offsets should scale with screen dimensions."""
+        idb = MagicMock()
+        action = AgentAction(action=ActionType.SWIPE_UP)
+        # iPad dimensions (logical points)
+        _execute_action(action, idb, screen_width=820, screen_height=1180)
+        args = idb.swipe.call_args[0]
+        cx = 820 // 2  # 410
+        assert args[0] == cx
+        assert args[2] == cx
+        vert_offset = int(1180 * 0.24)  # 283
+        assert args[1] == 1180 // 2 + vert_offset  # below center
+        assert args[3] == 1180 // 2 - vert_offset  # above center
 
     def test_execute_press_button(self):
         idb = MagicMock()
@@ -220,6 +239,7 @@ class TestRunAgent:
         mock_sim.find_device.return_value = MagicMock(
             name="iPhone 16", udid="test-udid"
         )
+        mock_sim.get_screen_size.return_value = (393, 852)
 
         # Setup Bridge mock
         mock_bridge = mock_bridge_cls.return_value
@@ -262,6 +282,7 @@ class TestRunAgent:
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
+        mock_sim.get_screen_size.return_value = (393, 852)
 
         mock_bridge = mock_bridge_cls.return_value
         mock_bridge.describe_ui.return_value = "some UI"
@@ -298,6 +319,7 @@ class TestRunAgent:
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
+        mock_sim.get_screen_size.return_value = (393, 852)
 
         mock_bridge = mock_bridge_cls.return_value
         mock_bridge.describe_ui.return_value = "empty screen"
@@ -333,6 +355,7 @@ class TestRunAgent:
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
+        mock_sim.get_screen_size.return_value = (393, 852)
 
         mock_bridge = mock_bridge_cls.return_value
         # Return different UI each time to avoid stale detection

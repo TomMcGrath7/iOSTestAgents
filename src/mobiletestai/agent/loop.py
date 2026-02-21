@@ -32,9 +32,9 @@ from mobiletestai.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Screen dimensions for swipe calculations (iPhone 16 logical)
-SCREEN_WIDTH = 393
-SCREEN_HEIGHT = 852
+# Swipe offset as a fraction of screen dimension (±24% from center)
+_SWIPE_VERTICAL_FRAC = 0.24
+_SWIPE_HORIZONTAL_FRAC = 0.19
 
 
 def _encode_image(path: Path) -> str:
@@ -119,9 +119,16 @@ def _parse_action(raw: str, ui_elements: list | None = None, shown_indices: set[
     return AgentAction(**data)
 
 
-def _execute_action(action: AgentAction, backend: DeviceBackend) -> None:
+def _execute_action(
+    action: AgentAction,
+    backend: DeviceBackend,
+    screen_width: int = 393,
+    screen_height: int = 852,
+) -> None:
     """Dispatch an action to the device backend."""
-    cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+    cx, cy = screen_width // 2, screen_height // 2
+    vert_offset = int(screen_height * _SWIPE_VERTICAL_FRAC)
+    horiz_offset = int(screen_width * _SWIPE_HORIZONTAL_FRAC)
 
     match action.action:
         case ActionType.TAP:
@@ -129,13 +136,13 @@ def _execute_action(action: AgentAction, backend: DeviceBackend) -> None:
                 raise DeviceError(f"tap action missing coordinates (x={action.x}, y={action.y})")
             backend.tap(action.x, action.y)
         case ActionType.SWIPE_UP:
-            backend.swipe(cx, cy + 200, cx, cy - 200)
+            backend.swipe(cx, cy + vert_offset, cx, cy - vert_offset)
         case ActionType.SWIPE_DOWN:
-            backend.swipe(cx, cy - 200, cx, cy + 200)
+            backend.swipe(cx, cy - vert_offset, cx, cy + vert_offset)
         case ActionType.SWIPE_LEFT:
-            backend.swipe(cx + 150, cy, cx - 150, cy)
+            backend.swipe(cx + horiz_offset, cy, cx - horiz_offset, cy)
         case ActionType.SWIPE_RIGHT:
-            backend.swipe(cx - 150, cy, cx + 150, cy)
+            backend.swipe(cx - horiz_offset, cy, cx + horiz_offset, cy)
         case ActionType.TYPE:
             backend.type_text(action.text or "")
         case ActionType.PRESS_BUTTON:
@@ -179,9 +186,14 @@ def run_agent(
     result.device = f"{device.name} ({device.udid})"
     sim.boot(device.udid)
 
-    if backend is None:
+    # Detect actual screen dimensions for this device
+    screen_width, screen_height = sim.get_screen_size(device.udid)
+    logger.info(f"Screen dimensions: {screen_width}x{screen_height}")
+
+    owns_backend = backend is None
+    if owns_backend:
         backend = BridgeDevice(device.udid, bundle_id=bundle_id)
-    backend.start(output_dir=output_path)
+        backend.start(output_dir=output_path)
 
     # Reset app for clean state
     if reset:
@@ -397,7 +409,7 @@ def run_agent(
 
             # 6. Act
             try:
-                _execute_action(action, backend)
+                _execute_action(action, backend, screen_width, screen_height)
             except DeviceError as exc:
                 logger.warning(f"Action execution failed: {exc}")
                 step.success = False
@@ -411,7 +423,8 @@ def run_agent(
             logger.warning(result.message)
 
     finally:
-        backend.stop()
+        if owns_backend:
+            backend.stop()
         if recording_proc:
             sim.stop_recording(recording_proc)
 

@@ -1,0 +1,19 @@
+name: valar_two_player_explore
+app_bundle_id: com.mcgrathtrading.ValarMorghulis
+app_path: "/Users/tom/Library/Developer/Xcode/DerivedData/Valar-Morghulis-gtrntfhecpfmoxdqeaqlbyauyony/Build/Products/Debug-iphonesimulator/Valar-Morghulis.app"
+players: 2
+device: "iPhone 17"
+backend: testbridge
+provider: openai
+model: gpt-4o
+max_steps: 10
+on_failure: continue
+
+steps:
+  - player: 1
+    action: "Navigate to Settings and look around the settings screen"
+    on_failure: continue
+
+  - player: 2
+    action: "Explore the main screen and scroll around to see what content is available"
+    on_failure: continue

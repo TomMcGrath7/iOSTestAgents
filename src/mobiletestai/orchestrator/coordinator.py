@@ -143,13 +143,9 @@ class Orchestrator:
             from mobiletestai.device.xcodebuildmcp import XcodeBuildMCPDevice
             return XcodeBuildMCPDevice(udid, bundle_id=bundle_id)
         elif backend_name == "testbridge":
-            if self._scenario.players > 1:
-                logger.warning(
-                    "TestBridge backend with multiple players will conflict on port 8615. "
-                    "Use backend: xcodebuildmcp for multi-device testing."
-                )
-            from mobiletestai.device.bridge import BridgeDevice
-            return BridgeDevice(udid, bundle_id=bundle_id)
+            from mobiletestai.device.bridge import BridgeDevice, BRIDGE_PORT
+            port = BRIDGE_PORT + len(self._backends)
+            return BridgeDevice(udid, bundle_id=bundle_id, port=port)
         else:
             raise OrchestratorError(f"Unknown backend: {backend_name!r}")
 

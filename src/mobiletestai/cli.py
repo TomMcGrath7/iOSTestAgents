@@ -228,7 +228,7 @@ def doctor() -> None:
     if BridgeDevice.is_available():
         console.print("  TestBridge project: [green]OK[/green]")
         any_backend = True
-        if BridgeDevice.is_running():
+        if BridgeDevice("doctor-check").is_running():
             console.print("  TestBridge server:  [green]Running[/green]")
         else:
             console.print("  TestBridge server:  [dim]Not running (starts automatically during test runs)[/dim]")

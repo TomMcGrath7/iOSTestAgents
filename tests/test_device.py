@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+from pathlib import Path
 from unittest.mock import MagicMock, patch, call
 
 import pytest
@@ -99,6 +100,55 @@ class TestSimulatorManager:
         with patch.object(sim, "_run"):
             path = sim.screenshot("udid", tmp_path / "shot.png")
             assert path == tmp_path / "shot.png"
+
+    def test_get_screen_size_iphone16(self):
+        sim = SimulatorManager()
+        enumerate_output = (
+            "Display 0:\n"
+            "  Size 1170 x 2532\n"
+            "  Scale 3.00\n"
+        )
+        with patch.object(sim, "_run", return_value=enumerate_output):
+            w, h = sim.get_screen_size("udid")
+        assert w == 390
+        assert h == 844
+
+    def test_get_screen_size_ipad(self):
+        sim = SimulatorManager()
+        enumerate_output = (
+            "Display 0:\n"
+            "  Size 1640 x 2360\n"
+            "  Scale 2.00\n"
+        )
+        with patch.object(sim, "_run", return_value=enumerate_output):
+            w, h = sim.get_screen_size("udid")
+        assert w == 820
+        assert h == 1180
+
+    def test_get_screen_size_no_scale(self):
+        """When scale factor is missing, treat as 1x."""
+        sim = SimulatorManager()
+        enumerate_output = "Display 0:\n  Size 393 x 852\n"
+        with patch.object(sim, "_run", return_value=enumerate_output):
+            w, h = sim.get_screen_size("udid")
+        assert w == 393
+        assert h == 852
+
+    def test_get_screen_size_parse_failure(self):
+        """Unparseable output should fall back to defaults."""
+        sim = SimulatorManager()
+        with patch.object(sim, "_run", return_value="no display info here"):
+            w, h = sim.get_screen_size("udid")
+        assert w == 393
+        assert h == 852
+
+    def test_get_screen_size_simctl_error(self):
+        """SimulatorError should fall back to defaults."""
+        sim = SimulatorManager()
+        with patch.object(sim, "_run", side_effect=SimulatorError("failed")):
+            w, h = sim.get_screen_size("udid")
+        assert w == 393
+        assert h == 852
 
 
 class TestIDBDevice:
@@ -270,14 +320,52 @@ class TestBridgeDevice:
             assert BridgeDevice.is_available() is False
 
     def test_is_running_true(self):
+        bridge = BridgeDevice("test-udid")
         with patch("urllib.request.urlopen") as mock_urlopen:
             mock_resp = MagicMock()
             mock_resp.read.return_value = b'{"status": "ok"}'
             mock_resp.__enter__ = lambda s: mock_resp
             mock_resp.__exit__ = MagicMock(return_value=False)
             mock_urlopen.return_value = mock_resp
-            assert BridgeDevice.is_running() is True
+            assert bridge.is_running() is True
 
     def test_is_running_false(self):
+        bridge = BridgeDevice("test-udid")
         with patch("urllib.request.urlopen", side_effect=Exception("refused")):
-            assert BridgeDevice.is_running() is False
+            assert bridge.is_running() is False
+
+    def test_default_port(self):
+        bridge = BridgeDevice("test-udid")
+        assert bridge.port == 8615
+        assert bridge.base_url == "http://localhost:8615"
+
+    def test_custom_port(self):
+        bridge = BridgeDevice("test-udid", port=8616)
+        assert bridge.port == 8616
+        assert bridge.base_url == "http://localhost:8616"
+
+    def test_two_instances_different_ports(self):
+        bridge1 = BridgeDevice("udid-1", port=8615)
+        bridge2 = BridgeDevice("udid-2", port=8616)
+        assert bridge1.base_url != bridge2.base_url
+        assert bridge1.base_url == "http://localhost:8615"
+        assert bridge2.base_url == "http://localhost:8616"
+
+    @patch("mobiletestai.device.bridge.time.sleep")
+    def test_start_writes_port_file(self, mock_sleep, tmp_path):
+        bridge = BridgeDevice("test-udid-1234", port=9000)
+        port_file = Path("/tmp/testbridge_test-udid-1234.port")
+        try:
+            with patch("mobiletestai.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
+                 patch("subprocess.Popen") as mock_popen, \
+                 patch.object(bridge, "is_running", return_value=False), \
+                 patch.object(bridge, "_request", return_value={"status": "ok"}):
+                (tmp_path / "TestBridge.xcodeproj").mkdir()
+                mock_proc = MagicMock()
+                mock_proc.poll.return_value = None
+                mock_popen.return_value = mock_proc
+                bridge.start(output_dir=tmp_path)
+                assert port_file.exists()
+                assert port_file.read_text() == "9000"
+        finally:
+            port_file.unlink(missing_ok=True)

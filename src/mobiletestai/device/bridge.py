@@ -14,15 +14,7 @@ from mobiletestai.util.logging import get_logger
 
 logger = get_logger(__name__)
 
-# TODO: Multi-device support requires a configurable port per BridgeDevice instance.
-# Currently hardcoded to 8615, so only one TestBridge can run per host.
-# To support multi-device orchestration with TestBridge:
-#   1. Add --port argument to HTTPServer.swift's NWListener setup
-#   2. Accept port parameter in BridgeDevice.__init__
-#   3. Pass unique ports from the Orchestrator (e.g. 8615, 8616, 8617, ...)
-# Until then, use the XcodeBuildMCP backend (stateless per-UDID CLI) for multi-device scenarios.
 BRIDGE_PORT = 8615
-BRIDGE_URL = f"http://localhost:{BRIDGE_PORT}"
 TESTBRIDGE_PROJECT = Path(__file__).resolve().parent.parent.parent.parent / "testbridge" / "TestBridge.xcodeproj"
 
 
@@ -33,13 +25,15 @@ class BridgeError(DeviceError):
 class BridgeDevice:
     """UI interaction layer using TestBridge XCUITest HTTP server."""
 
-    def __init__(self, udid: str, bundle_id: str | None = None) -> None:
+    def __init__(self, udid: str, bundle_id: str | None = None, port: int = BRIDGE_PORT) -> None:
         self.udid = udid
         self.bundle_id = bundle_id
+        self.port = port
+        self.base_url = f"http://localhost:{self.port}"
         self._process: subprocess.Popen | None = None
 
     def _request(self, method: str, path: str, body: dict | None = None, query: str | None = None) -> dict | bytes:
-        url = f"{BRIDGE_URL}{path}"
+        url = f"{self.base_url}{path}"
         if query:
             url = f"{url}?{query}"
         data = json.dumps(body).encode() if body else None
@@ -104,6 +98,12 @@ class BridgeDevice:
         output_path.mkdir(parents=True, exist_ok=True)
         log_file = output_path / "testbridge.log"
 
+        # Write port file so the TestBridge Swift code can find its assigned port.
+        # The simulator sets SIMULATOR_UDID in every app's environment, so the
+        # test runner reads /tmp/testbridge_<UDID>.port to discover its port.
+        self._port_file = Path(f"/tmp/testbridge_{self.udid}.port")
+        self._port_file.write_text(str(self.port))
+
         cmd = [
             "xcodebuild", "test",
             "-project", project,
@@ -111,7 +111,7 @@ class BridgeDevice:
             "-destination", f"platform=iOS Simulator,id={self.udid}",
             "-only-testing:TestBridgeUITests/TestBridgeUITests/testBridgeServer",
         ]
-        logger.info(f"Starting TestBridge: {' '.join(cmd)}")
+        logger.info(f"Starting TestBridge (port {self.port}): {' '.join(cmd)}")
 
         with open(log_file, "w") as lf:
             self._process = subprocess.Popen(
@@ -147,17 +147,20 @@ class BridgeDevice:
             except subprocess.TimeoutExpired:
                 self._process.kill()
             self._process = None
+        # Clean up port file
+        port_file = getattr(self, "_port_file", None)
+        if port_file and port_file.exists():
+            port_file.unlink()
 
     @staticmethod
     def is_available() -> bool:
         """Check if TestBridge Xcode project exists."""
         return TESTBRIDGE_PROJECT.exists()
 
-    @staticmethod
-    def is_running() -> bool:
-        """Check if TestBridge server is responding."""
+    def is_running(self) -> bool:
+        """Check if TestBridge server is responding on this instance's port."""
         try:
-            req = urllib.request.Request(f"{BRIDGE_URL}/health", method="GET")
+            req = urllib.request.Request(f"{self.base_url}/health", method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 data = json.loads(resp.read())
                 return data.get("status") == "ok"

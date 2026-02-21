@@ -174,6 +174,41 @@ class SimulatorManager:
             self.install_app(udid, app_path)
         self.launch_app(udid, bundle_id)
 
+    def get_screen_size(self, udid: str) -> tuple[int, int]:
+        """Return (width, height) in logical points for a booted simulator.
+
+        Parses output of `xcrun simctl io <udid> enumerate` which contains
+        display dimensions like 'Size 1170 x 2532' (physical) and a scale
+        factor. Divides by scale to get logical points.
+
+        Falls back to iPhone 16 defaults (393x852) if parsing fails.
+        """
+        try:
+            raw = self._run(["io", udid, "enumerate"])
+        except SimulatorError:
+            logger.warning("Failed to enumerate displays, using default 393x852")
+            return (393, 852)
+
+        import re
+
+        # Look for lines like:  Size 1170 x 2532
+        size_match = re.search(r"Size\s+(\d+)\s*x\s*(\d+)", raw)
+        if not size_match:
+            logger.warning("Could not parse display size from enumerate output, using default 393x852")
+            return (393, 852)
+
+        phys_w = int(size_match.group(1))
+        phys_h = int(size_match.group(2))
+
+        # Look for scale factor like:  Scale 3.00
+        scale_match = re.search(r"Scale\s+(\d+(?:\.\d+)?)", raw)
+        scale = float(scale_match.group(1)) if scale_match else 1.0
+
+        width = int(phys_w / scale)
+        height = int(phys_h / scale)
+        logger.info(f"Detected screen size: {width}x{height} (physical {phys_w}x{phys_h}, scale {scale})")
+        return (width, height)
+
     def screenshot(self, udid: str, path: str | Path) -> Path:
         path = Path(path)
         self._run(["io", udid, "screenshot", str(path)])

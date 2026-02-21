@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,7 +46,32 @@ _ELEMENT_RE = re.compile(
 
 
 def parse_ui_elements(ui_state: str) -> list[UIElement]:
-    """Parse raw accessibility tree text into a list of UIElements."""
+    """Parse raw accessibility tree into a list of UIElements.
+
+    Supports two formats:
+    - TestBridge text format: Button 'label' {{x, y}, {w, h}}
+    - XcodeBuildMCP JSON format: nested objects with type, AXLabel, frame, children
+    """
+    # Detect XcodeBuildMCP JSON format
+    if _is_json_ui(ui_state):
+        # Be defensive: if JSON parsing fails, fall back to text format parsing.
+        try:
+            return _parse_json_ui(ui_state)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            # Malformed or unexpected JSON-like input; use text parser instead.
+            pass
+    return _parse_text_ui(ui_state)
+
+
+def _is_json_ui(ui_state: str) -> bool:
+    """Check if the UI state is XcodeBuildMCP JSON format."""
+    # XcodeBuildMCP wraps JSON in markdown code block with a preamble
+    stripped = ui_state.strip()
+    return "```json" in stripped or ('"type"' in stripped and '"frame"' in stripped)
+
+
+def _parse_text_ui(ui_state: str) -> list[UIElement]:
+    """Parse TestBridge text format accessibility tree."""
     elements = []
     idx = 1
     for line in ui_state.splitlines():
@@ -68,6 +97,62 @@ def parse_ui_elements(ui_state: str) -> list[UIElement]:
         )
         elements.append(elem)
         idx += 1
+    return elements
+
+
+def _parse_json_ui(ui_state: str) -> list[UIElement]:
+    """Parse XcodeBuildMCP JSON format accessibility tree."""
+    # Extract JSON from markdown code block if present
+    text = ui_state.strip()
+    if "```json" in text:
+        start = text.index("```json") + len("```json")
+        end = text.index("```", start) if "```" in text[start:] else len(text)
+        text = text[start:start + end - start].strip()
+    elif "```" in text:
+        start = text.index("```") + len("```")
+        end = text.index("```", start) if "```" in text[start:] else len(text)
+        text = text[start:start + end - start].strip()
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.warning(f"Failed to parse XcodeBuildMCP JSON UI: {exc}")
+        return []
+
+    elements: list[UIElement] = []
+    idx_counter = [1]  # mutable counter for nested recursion
+
+    def _walk(node: dict) -> None:
+        el_type = node.get("type", "")
+        label = node.get("AXLabel") or node.get("title") or ""
+        frame = node.get("frame", {})
+        x = frame.get("x", 0)
+        y = frame.get("y", 0)
+        w = frame.get("width", 0)
+        h = frame.get("height", 0)
+
+        # Convert to int (XcodeBuildMCP uses floats)
+        x, y, w, h = int(x), int(y), int(w), int(h)
+
+        if w > 0 and h > 0 and el_type:
+            elem = UIElement(
+                index=idx_counter[0],
+                element_type=el_type,
+                label=label,
+                x=x, y=y, width=w, height=h,
+                center_x=x + w // 2,
+                center_y=y + h // 2,
+            )
+            elements.append(elem)
+            idx_counter[0] += 1
+
+        for child in node.get("children", []):
+            _walk(child)
+
+    nodes = data if isinstance(data, list) else [data]
+    for node in nodes:
+        _walk(node)
+
     return elements
 
 
@@ -157,10 +242,14 @@ def build_element_list(
 
 
 def detect_screen_title(elements: list[UIElement]) -> str:
-    """Extract the current screen title from NavigationBar or StaticText near top."""
-    # Look for NavigationBar with a label
+    """Extract the current screen title from NavigationBar, Heading, or StaticText near top."""
+    # Look for NavigationBar with a label (TestBridge format)
     for el in elements:
         if el.element_type == "NavigationBar" and el.label:
+            return el.label
+    # Look for Heading near top (XcodeBuildMCP format)
+    for el in elements:
+        if el.element_type == "Heading" and el.label and el.y < 120:
             return el.label
     # Fallback: look for prominent StaticText near the top of the screen (y < 120)
     for el in elements:

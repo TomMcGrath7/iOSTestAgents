@@ -6,8 +6,8 @@ import json
 import urllib.request
 import urllib.error
 
-from mobiletestai.llm.base import LLMProvider, LLMResponse
-from mobiletestai.util.logging import get_logger
+from iostestagents.llm.base import LLMProvider, LLMResponse
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 

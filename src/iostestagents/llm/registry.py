@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import urllib.request
 
-from mobiletestai.llm.base import LLMProvider
+from iostestagents.llm.base import LLMProvider
 
 ENV_KEYS: dict[str, str | None] = {
     "anthropic": "ANTHROPIC_API_KEY",
@@ -27,15 +27,15 @@ def _ollama_available() -> bool:
 
 def _create_provider(name: str) -> LLMProvider:
     if name == "anthropic":
-        from mobiletestai.llm.anthropic import AnthropicProvider
+        from iostestagents.llm.anthropic import AnthropicProvider
 
         return AnthropicProvider()
     elif name == "openai":
-        from mobiletestai.llm.openai import OpenAIProvider
+        from iostestagents.llm.openai import OpenAIProvider
 
         return OpenAIProvider()
     elif name == "ollama":
-        from mobiletestai.llm.ollama import OllamaProvider
+        from iostestagents.llm.ollama import OllamaProvider
 
         return OllamaProvider()
     else:

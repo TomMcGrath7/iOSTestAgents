@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-from mobiletestai.util.logging import get_logger
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 

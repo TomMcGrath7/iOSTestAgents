@@ -53,7 +53,7 @@ def simctl_devices_json():
 @pytest.fixture
 def mock_llm_provider():
     """Mock LLM provider that returns a valid action JSON."""
-    from mobiletestai.llm.base import LLMResponse
+    from iostestagents.llm.base import LLMResponse
 
     provider = MagicMock()
     provider.name = "mock"
@@ -65,6 +65,6 @@ def mock_llm_provider():
         input_tokens=500,
         output_tokens=50,
     )
-    with patch("mobiletestai.agent.loop.get_provider", return_value=provider), \
-         patch("mobiletestai.agent.loop.BridgeDevice"):
+    with patch("iostestagents.agent.loop.get_provider", return_value=provider), \
+         patch("iostestagents.agent.loop.BridgeDevice"):
         yield provider

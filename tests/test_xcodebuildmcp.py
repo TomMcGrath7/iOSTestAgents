@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mobiletestai.device.xcodebuildmcp import XcodeBuildMCPDevice, XcodeBuildMCPError
+from iostestagents.device.xcodebuildmcp import XcodeBuildMCPDevice, XcodeBuildMCPError
 
 
 class TestXcodeBuildMCPDevice:

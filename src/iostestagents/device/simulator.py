@@ -7,7 +7,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from mobiletestai.util.logging import get_logger
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 

@@ -13,7 +13,7 @@ cd MobileAppTesterAgent
 uv sync --extra dev
 
 # Verify your environment
-uv run mobiletestai doctor
+uv run iostestagents doctor
 
 # Run tests
 uv run pytest -v
@@ -56,10 +56,10 @@ Open an issue describing the feature and why it would be useful. For multi-devic
 
 ## Project Structure
 
-- `src/mobiletestai/agent/` — LLM agent loop and prompts
-- `src/mobiletestai/device/` — Device backend implementations
-- `src/mobiletestai/llm/` — LLM provider integrations
-- `src/mobiletestai/orchestrator/` — Multi-device coordination
+- `src/iostestagents/agent/` — LLM agent loop and prompts
+- `src/iostestagents/device/` — Device backend implementations
+- `src/iostestagents/llm/` — LLM provider integrations
+- `src/iostestagents/orchestrator/` — Multi-device coordination
 - `testbridge/` — Swift XCUITest HTTP bridge
 - `scenarios/` — Example YAML test scenarios
 - `tests/` — pytest test suite

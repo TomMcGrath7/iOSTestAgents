@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mobiletestai.agent.ui_parser import (
+from iostestagents.agent.ui_parser import (
     UIElement,
     build_element_list,
     check_goal_reached,

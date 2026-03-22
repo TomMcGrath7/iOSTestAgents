@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mobiletestai.llm.base import LLMProvider, LLMResponse
-from mobiletestai.llm.anthropic import AnthropicProvider
-from mobiletestai.llm.openai import OpenAIProvider, _translate_content
-from mobiletestai.llm.ollama import OllamaProvider, _translate_to_ollama_content
-from mobiletestai.llm.registry import get_provider
+from iostestagents.llm.base import LLMProvider, LLMResponse
+from iostestagents.llm.anthropic import AnthropicProvider
+from iostestagents.llm.openai import OpenAIProvider, _translate_content
+from iostestagents.llm.ollama import OllamaProvider, _translate_to_ollama_content
+from iostestagents.llm.registry import get_provider
 
 
 class TestLLMResponse:
@@ -86,14 +86,14 @@ class TestOllamaTranslateContent:
 
 
 class TestProviderProperties:
-    @patch("mobiletestai.llm.anthropic.anthropic.Anthropic")
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
     def test_anthropic_defaults(self, mock_cls):
         p = AnthropicProvider()
         assert p.name == "anthropic"
         assert "claude" in p.default_model
         assert p.cost_per_input_token > 0
 
-    @patch("mobiletestai.llm.openai.openai.OpenAI")
+    @patch("iostestagents.llm.openai.openai.OpenAI")
     def test_openai_defaults(self, mock_cls):
         p = OpenAIProvider()
         assert p.name == "openai"
@@ -148,7 +148,7 @@ class TestOllamaChat:
 
 
 class TestRegistry:
-    @patch("mobiletestai.llm.anthropic.anthropic.Anthropic")
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
     def test_get_provider_by_name(self, mock_cls):
         p = get_provider("anthropic")
         assert isinstance(p, AnthropicProvider)
@@ -157,7 +157,7 @@ class TestRegistry:
         with pytest.raises(ValueError, match="Unknown provider"):
             get_provider("nonexistent")
 
-    @patch("mobiletestai.llm.anthropic.anthropic.Anthropic")
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
     def test_auto_detect_anthropic(self, mock_cls):
         env = os.environ.copy()
         env["ANTHROPIC_API_KEY"] = "test-key"
@@ -166,7 +166,7 @@ class TestRegistry:
             p = get_provider(None)
         assert isinstance(p, AnthropicProvider)
 
-    @patch("mobiletestai.llm.openai.openai.OpenAI")
+    @patch("iostestagents.llm.openai.openai.OpenAI")
     def test_auto_detect_openai(self, mock_cls):
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
@@ -175,7 +175,7 @@ class TestRegistry:
             p = get_provider(None)
         assert isinstance(p, OpenAIProvider)
 
-    @patch("mobiletestai.llm.registry._ollama_available", return_value=True)
+    @patch("iostestagents.llm.registry._ollama_available", return_value=True)
     def test_auto_detect_ollama(self, mock_ollama):
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
@@ -184,7 +184,7 @@ class TestRegistry:
             p = get_provider(None)
         assert isinstance(p, OllamaProvider)
 
-    @patch("mobiletestai.llm.registry._ollama_available", return_value=False)
+    @patch("iostestagents.llm.registry._ollama_available", return_value=False)
     def test_auto_detect_none_raises(self, mock_ollama):
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)

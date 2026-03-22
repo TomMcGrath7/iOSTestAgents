@@ -5,7 +5,7 @@
 An AI-powered iOS app testing framework. LLM agents autonomously navigate and test iOS apps on simulators. The unique differentiator is **multi-device orchestration** — coordinating N agents across N simulators for multiplayer/collaborative app testing. Nobody else has built this.
 
 Repo: `/Users/tom/Documents/GitHub/MobileAppTesterAgent`
-Package: `mobiletestai`
+Package: `iostestagents`
 
 ## Current State (What's Already Built & Working)
 
@@ -121,7 +121,7 @@ Create `device/xcodebuildmcp.py` with `XcodeBuildMCPDevice` implementing `Device
 
 Run the full pipeline against Settings.app:
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 16" \
   --app com.apple.Preferences \
   --goal "Navigate to General settings" \
@@ -130,7 +130,7 @@ uv run mobiletestai run \
 
 Then Safari:
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 16" \
   --app com.apple.mobilesafari \
   --goal "Open Safari and navigate to apple.com"
@@ -177,7 +177,7 @@ Key orchestration primitives:
 
 ```
 MobileAppTesterAgent/
-├── src/mobiletestai/
+├── src/iostestagents/
 │   ├── __init__.py
 │   ├── cli.py                    # Typer CLI
 │   ├── agent/
@@ -268,10 +268,10 @@ uv sync --extra dev
 export ANTHROPIC_API_KEY="..."
 
 # Verify
-uv run mobiletestai doctor
+uv run iostestagents doctor
 
 # Run
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 16" \
   --app com.apple.Preferences \
   --goal "Navigate to General settings" \

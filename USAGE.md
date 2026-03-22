@@ -16,10 +16,10 @@ cd /path/to/MobileAppTesterAgent
 uv sync --extra dev
 
 # Check everything is configured
-uv run mobiletestai doctor
+uv run iostestagents doctor
 
 # Run a test
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 16" \
   --app com.apple.Preferences \
   --goal "Navigate to General > About"
@@ -58,7 +58,7 @@ export OPENAI_API_KEY="sk-..."
 You can override the auto-detected provider with `--provider`:
 
 ```bash
-uv run mobiletestai run --provider ollama --model qwen3-vl ...
+uv run iostestagents run --provider ollama --model qwen3-vl ...
 ```
 
 ## Device Backends
@@ -70,7 +70,7 @@ A backend is what actually taps buttons and reads the screen on the simulator. T
 Our built-in XCUITest HTTP server. Zero external dependencies beyond Xcode. Starts automatically when you run a test.
 
 ```bash
-uv run mobiletestai run --backend testbridge ...
+uv run iostestagents run --backend testbridge ...
 ```
 
 ### XcodeBuildMCP
@@ -79,7 +79,7 @@ Third-party CLI by Sentry with 59+ tools. Supports real devices, debugging, and 
 
 ```bash
 npm install -g xcodebuildmcp@latest
-uv run mobiletestai run --backend xcodebuildmcp ...
+uv run iostestagents run --backend xcodebuildmcp ...
 ```
 
 ## Commands
@@ -87,7 +87,7 @@ uv run mobiletestai run --backend xcodebuildmcp ...
 ### `run` — Execute a test
 
 ```bash
-uv run mobiletestai run [OPTIONS]
+uv run iostestagents run [OPTIONS]
 ```
 
 | Option | Short | Description |
@@ -110,7 +110,7 @@ uv run mobiletestai run [OPTIONS]
 ### `doctor` — Check setup
 
 ```bash
-uv run mobiletestai doctor
+uv run iostestagents doctor
 ```
 
 Verifies: Xcode CLI tools, device backends, available simulators, and LLM providers.
@@ -119,7 +119,7 @@ Verifies: Xcode CLI tools, device backends, available simulators, and LLM provid
 
 **Navigate Settings:**
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   -d "iPhone 16" \
   -a com.apple.Preferences \
   -g "Navigate to General > About"
@@ -127,7 +127,7 @@ uv run mobiletestai run \
 
 **Test Safari:**
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   -d "iPhone 16" \
   -a com.apple.mobilesafari \
   -g "Open Safari and navigate to apple.com"
@@ -135,7 +135,7 @@ uv run mobiletestai run \
 
 **Use a specific model with recording:**
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   -d "iPhone 16 Pro" \
   -a com.example.myapp \
   -g "Log in with username 'test' and password 'test123'" \
@@ -146,7 +146,7 @@ uv run mobiletestai run \
 
 **Use XcodeBuildMCP backend:**
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   -d "iPhone 16" \
   -a com.apple.Preferences \
   -g "Toggle Wi-Fi off and back on" \

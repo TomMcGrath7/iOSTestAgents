@@ -64,7 +64,7 @@ uv sync --extra dev
 npm install -g xcodebuildmcp@latest
 
 # Verify everything is set up
-uv run mobiletestai doctor
+uv run iostestagents doctor
 ```
 
 ## Setting Up an LLM Provider
@@ -117,9 +117,9 @@ Get your API key at [console.anthropic.com](https://console.anthropic.com/).
 You can override the auto-detected provider with `--provider` and `--model`:
 
 ```bash
-uv run mobiletestai run --provider ollama --model qwen3:8b ...
-uv run mobiletestai run --provider openai --model gpt-4o ...
-uv run mobiletestai run --provider anthropic --model claude-sonnet-4-5-20250929 ...
+uv run iostestagents run --provider ollama --model qwen3:8b ...
+uv run iostestagents run --provider openai --model gpt-4o ...
+uv run iostestagents run --provider anthropic --model claude-sonnet-4-5-20250929 ...
 ```
 
 ## Quick Start
@@ -127,7 +127,7 @@ uv run mobiletestai run --provider anthropic --model claude-sonnet-4-5-20250929 
 Run a single-device test:
 
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 17" \
   --app com.apple.Preferences \
   --goal "Navigate to General > About"
@@ -136,7 +136,7 @@ uv run mobiletestai run \
 Run with a specific provider and screen recording:
 
 ```bash
-uv run mobiletestai run \
+uv run iostestagents run \
   --device "iPhone 17" \
   --app com.apple.mobilesafari \
   --goal "Open Safari, tap the address bar, type apple.com, and verify the page loads" \
@@ -147,7 +147,7 @@ uv run mobiletestai run \
 Run a multi-device scenario:
 
 ```bash
-uv run mobiletestai scenario scenarios/multiplayer_example.yaml
+uv run iostestagents scenario scenarios/multiplayer_example.yaml
 ```
 
 ## Multi-Device Scenarios
@@ -190,7 +190,7 @@ See the `scenarios/` directory for more examples.
 ## CLI Reference
 
 ```
-mobiletestai run
+iostestagents run
   --device, -d    Simulator device name (required)
   --app, -a       App bundle identifier (required)
   --goal, -g      Natural language test goal (required)
@@ -206,10 +206,10 @@ mobiletestai run
   --app-path      Path to .app bundle for install
   --no-vision     Skip screenshots, use accessibility tree only (faster)
 
-mobiletestai scenario <path>
+iostestagents scenario <path>
   Run a multi-device YAML scenario file
 
-mobiletestai doctor
+iostestagents doctor
   Check environment setup and backend availability
 ```
 
@@ -244,7 +244,7 @@ Think of goals as instructions for someone who has never seen the app before.
 ## Architecture
 
 ```
-src/mobiletestai/
+src/iostestagents/
 ├── cli.py                    # Typer CLI
 ├── agent/
 │   ├── loop.py               # Core observe → reason → act loop
@@ -281,7 +281,7 @@ uv run pytest
 uv run pytest -v
 
 # Check environment
-uv run mobiletestai doctor
+uv run iostestagents doctor
 ```
 
 ## Limitations

@@ -1,4 +1,4 @@
-"""Rich logging setup for mobiletestai."""
+"""Rich logging setup for iostestagents."""
 
 from __future__ import annotations
 

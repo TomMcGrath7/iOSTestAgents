@@ -9,14 +9,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from mobiletestai.cli import app
+from iostestagents.cli import app
 
 runner = CliRunner()
 
 
 class TestDoctorCommand:
-    @patch("mobiletestai.cli.XcodeBuildMCPDevice")
-    @patch("mobiletestai.cli.BridgeDevice")
+    @patch("iostestagents.cli.XcodeBuildMCPDevice")
+    @patch("iostestagents.cli.BridgeDevice")
     @patch("urllib.request.urlopen", side_effect=Exception("no ollama"))
     @patch("subprocess.run")
     def test_doctor_all_pass(self, mock_run, mock_urlopen, mock_bridge_cls, mock_mcp_cls):
@@ -35,8 +35,8 @@ class TestDoctorCommand:
         assert result.exit_code == 0
         assert "All checks passed" in result.output
 
-    @patch("mobiletestai.cli.XcodeBuildMCPDevice")
-    @patch("mobiletestai.cli.BridgeDevice")
+    @patch("iostestagents.cli.XcodeBuildMCPDevice")
+    @patch("iostestagents.cli.BridgeDevice")
     @patch("urllib.request.urlopen", side_effect=Exception("no ollama"))
     @patch("subprocess.run")
     def test_doctor_no_backends(self, mock_run, mock_urlopen, mock_bridge_cls, mock_mcp_cls):
@@ -53,8 +53,8 @@ class TestDoctorCommand:
         assert result.exit_code == 1
         assert "No device backends available" in result.output
 
-    @patch("mobiletestai.cli.XcodeBuildMCPDevice")
-    @patch("mobiletestai.cli.BridgeDevice")
+    @patch("iostestagents.cli.XcodeBuildMCPDevice")
+    @patch("iostestagents.cli.BridgeDevice")
     @patch("urllib.request.urlopen", side_effect=Exception("no ollama"))
     @patch("subprocess.run")
     def test_doctor_no_providers(self, mock_run, mock_urlopen, mock_bridge_cls, mock_mcp_cls):
@@ -80,9 +80,9 @@ class TestRunCommand:
         result = runner.invoke(app, ["run"])
         assert result.exit_code != 0
 
-    @patch("mobiletestai.agent.loop.run_agent")  # patch where it's used, not where it's defined
+    @patch("iostestagents.agent.loop.run_agent")  # patch where it's used, not where it's defined
     def test_run_success(self, mock_run_agent, tmp_path):
-        from mobiletestai.agent.models import RunResult, TokenUsage
+        from iostestagents.agent.models import RunResult, TokenUsage
 
         mock_run_agent.return_value = RunResult(
             run_id="test123",
@@ -106,9 +106,9 @@ class TestRunCommand:
         assert result.exit_code == 0
         assert "success" in result.output.lower() or "Done" in result.output
 
-    @patch("mobiletestai.agent.loop.run_agent")
+    @patch("iostestagents.agent.loop.run_agent")
     def test_run_failure_exit_code(self, mock_run_agent, tmp_path):
-        from mobiletestai.agent.models import RunResult, TokenUsage
+        from iostestagents.agent.models import RunResult, TokenUsage
 
         mock_run_agent.return_value = RunResult(
             run_id="fail123",

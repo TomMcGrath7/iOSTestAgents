@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import anthropic
 
-from mobiletestai.llm.base import LLMProvider, LLMResponse
+from iostestagents.llm.base import LLMProvider, LLMResponse
 
 
 class AnthropicProvider(LLMProvider):

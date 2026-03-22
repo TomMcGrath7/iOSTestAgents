@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import openai
 
-from mobiletestai.llm.base import LLMProvider, LLMResponse
+from iostestagents.llm.base import LLMProvider, LLMResponse
 
 
 def _translate_content(messages_content: list[dict]) -> list[dict]:

@@ -6,15 +6,15 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from mobiletestai.agent.loop import run_agent
-from mobiletestai.agent.models import OrchestratorResult, PlayerResult, RunResult, TimelineEvent
-from mobiletestai.device.base import DeviceBackend
-from mobiletestai.device.simulator import DeviceInfo, SimulatorManager
-from mobiletestai.llm.base import LLMProvider
-from mobiletestai.llm.registry import get_provider
-from mobiletestai.orchestrator.scenario import Scenario, ScenarioStep
-from mobiletestai.orchestrator.sync import AbortEvent, VariableStore
-from mobiletestai.util.logging import get_logger
+from iostestagents.agent.loop import run_agent
+from iostestagents.agent.models import OrchestratorResult, PlayerResult, RunResult, TimelineEvent
+from iostestagents.device.base import DeviceBackend
+from iostestagents.device.simulator import DeviceInfo, SimulatorManager
+from iostestagents.llm.base import LLMProvider
+from iostestagents.llm.registry import get_provider
+from iostestagents.orchestrator.scenario import Scenario, ScenarioStep
+from iostestagents.orchestrator.sync import AbortEvent, VariableStore
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -140,10 +140,10 @@ class Orchestrator:
 
         backend_name = self._scenario.backend
         if backend_name == "xcodebuildmcp":
-            from mobiletestai.device.xcodebuildmcp import XcodeBuildMCPDevice
+            from iostestagents.device.xcodebuildmcp import XcodeBuildMCPDevice
             return XcodeBuildMCPDevice(udid, bundle_id=bundle_id)
         elif backend_name == "testbridge":
-            from mobiletestai.device.bridge import BridgeDevice, BRIDGE_PORT
+            from iostestagents.device.bridge import BridgeDevice, BRIDGE_PORT
             port = BRIDGE_PORT + len(self._backends)
             return BridgeDevice(udid, bundle_id=bundle_id, port=port)
         else:

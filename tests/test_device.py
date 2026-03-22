@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from mobiletestai.device.simulator import SimulatorManager, SimulatorError, DeviceInfo
-from mobiletestai.device.idb import IDBDevice, IDBError
-from mobiletestai.device.bridge import BridgeDevice, BridgeError
+from iostestagents.device.simulator import SimulatorManager, SimulatorError, DeviceInfo
+from iostestagents.device.idb import IDBDevice, IDBError
+from iostestagents.device.bridge import BridgeDevice, BridgeError
 
 
 class TestSimulatorManager:
@@ -282,10 +282,10 @@ class TestBridgeDevice:
             with pytest.raises(BridgeError, match="not reachable"):
                 bridge._request("GET", "/health")
 
-    @patch("mobiletestai.device.bridge.time.sleep")
+    @patch("iostestagents.device.bridge.time.sleep")
     def test_start_polls_health(self, mock_sleep, tmp_path):
         bridge = BridgeDevice("test-udid")
-        with patch("mobiletestai.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
+        with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
              patch("subprocess.Popen") as mock_popen, \
              patch.object(bridge, "is_running", return_value=False), \
              patch.object(bridge, "_request") as mock_req:
@@ -311,12 +311,12 @@ class TestBridgeDevice:
         mock_proc.terminate.assert_called_once()
 
     def test_is_available_true(self, tmp_path):
-        with patch("mobiletestai.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"):
+        with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"):
             (tmp_path / "TestBridge.xcodeproj").mkdir()
             assert BridgeDevice.is_available() is True
 
     def test_is_available_false(self, tmp_path):
-        with patch("mobiletestai.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "nonexistent.xcodeproj"):
+        with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "nonexistent.xcodeproj"):
             assert BridgeDevice.is_available() is False
 
     def test_is_running_true(self):
@@ -351,12 +351,12 @@ class TestBridgeDevice:
         assert bridge1.base_url == "http://localhost:8615"
         assert bridge2.base_url == "http://localhost:8616"
 
-    @patch("mobiletestai.device.bridge.time.sleep")
+    @patch("iostestagents.device.bridge.time.sleep")
     def test_start_writes_port_file(self, mock_sleep, tmp_path):
         bridge = BridgeDevice("test-udid-1234", port=9000)
         port_file = Path("/tmp/testbridge_test-udid-1234.port")
         try:
-            with patch("mobiletestai.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
+            with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
                  patch("subprocess.Popen") as mock_popen, \
                  patch.object(bridge, "is_running", return_value=False), \
                  patch.object(bridge, "_request", return_value={"status": "ok"}):

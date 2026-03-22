@@ -9,8 +9,8 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-from mobiletestai.device.base import DeviceError
-from mobiletestai.util.logging import get_logger
+from iostestagents.device.base import DeviceError
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 

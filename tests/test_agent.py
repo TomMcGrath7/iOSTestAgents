@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 
-from mobiletestai.agent.models import ActionType, AgentAction, RunResult, StepRecord, TokenUsage
-from mobiletestai.agent.prompts import build_user_prompt, SYSTEM_PROMPT
-from mobiletestai.agent.loop import _parse_action, _execute_action, run_agent
+from iostestagents.agent.models import ActionType, AgentAction, RunResult, StepRecord, TokenUsage
+from iostestagents.agent.prompts import build_user_prompt, SYSTEM_PROMPT
+from iostestagents.agent.loop import _parse_action, _execute_action, run_agent
 
 
 class TestModels:
@@ -121,7 +121,7 @@ class TestParseAction:
 
 
     def test_parse_with_element_reference(self):
-        from mobiletestai.agent.ui_parser import parse_ui_elements
+        from iostestagents.agent.ui_parser import parse_ui_elements
         ui = "Cell 'General' {{0, 500}, {393, 44}}"
         elements = parse_ui_elements(ui)
         raw = '{"action": "tap", "element": 1, "reasoning": "tap General"}'
@@ -131,7 +131,7 @@ class TestParseAction:
         assert action.y == 522
 
     def test_parse_with_target_name(self):
-        from mobiletestai.agent.ui_parser import parse_ui_elements
+        from iostestagents.agent.ui_parser import parse_ui_elements
         ui = "Button 'Back' {{0, 44}, {80, 44}}"
         elements = parse_ui_elements(ui)
         raw = '{"action": "tap", "target": "Back", "reasoning": "go back"}'
@@ -202,14 +202,14 @@ class TestExecuteAction:
     def test_execute_wait(self):
         idb = MagicMock()
         action = AgentAction(action=ActionType.WAIT)
-        with patch("mobiletestai.agent.loop.time.sleep"):
+        with patch("iostestagents.agent.loop.time.sleep"):
             _execute_action(action, idb)
         idb.tap.assert_not_called()
 
 
 def _make_mock_provider(chat_return=None, chat_side_effect=None):
     """Create a mock LLM provider."""
-    from mobiletestai.llm.base import LLMResponse
+    from iostestagents.llm.base import LLMResponse
 
     provider = MagicMock()
     provider.name = "mock"
@@ -224,15 +224,15 @@ def _make_mock_provider(chat_return=None, chat_side_effect=None):
 
 
 class TestRunAgent:
-    @patch("mobiletestai.agent.loop.time.sleep")
-    @patch("mobiletestai.agent.loop._encode_image", return_value="AAAA")
-    @patch("mobiletestai.agent.loop.BridgeDevice")
-    @patch("mobiletestai.agent.loop.SimulatorManager")
-    @patch("mobiletestai.agent.loop.get_provider")
+    @patch("iostestagents.agent.loop.time.sleep")
+    @patch("iostestagents.agent.loop._encode_image", return_value="AAAA")
+    @patch("iostestagents.agent.loop.BridgeDevice")
+    @patch("iostestagents.agent.loop.SimulatorManager")
+    @patch("iostestagents.agent.loop.get_provider")
     def test_run_agent_done_on_first_step(
         self, mock_get_provider, mock_sim_cls, mock_bridge_cls, mock_encode, mock_sleep, tmp_path
     ):
-        from mobiletestai.llm.base import LLMResponse
+        from iostestagents.llm.base import LLMResponse
 
         # Setup simulator mock
         mock_sim = mock_sim_cls.return_value
@@ -270,15 +270,15 @@ class TestRunAgent:
         mock_bridge.start.assert_called_once()
         mock_bridge.stop.assert_called_once()
 
-    @patch("mobiletestai.agent.loop.time.sleep")
-    @patch("mobiletestai.agent.loop._encode_image", return_value="AAAA")
-    @patch("mobiletestai.agent.loop.BridgeDevice")
-    @patch("mobiletestai.agent.loop.SimulatorManager")
-    @patch("mobiletestai.agent.loop.get_provider")
+    @patch("iostestagents.agent.loop.time.sleep")
+    @patch("iostestagents.agent.loop._encode_image", return_value="AAAA")
+    @patch("iostestagents.agent.loop.BridgeDevice")
+    @patch("iostestagents.agent.loop.SimulatorManager")
+    @patch("iostestagents.agent.loop.get_provider")
     def test_run_agent_max_steps(
         self, mock_get_provider, mock_sim_cls, mock_bridge_cls, mock_encode, mock_sleep, tmp_path
     ):
-        from mobiletestai.llm.base import LLMResponse
+        from iostestagents.llm.base import LLMResponse
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
@@ -307,15 +307,15 @@ class TestRunAgent:
         assert result.status == "max_steps_reached"
         assert len(result.steps) == 3
 
-    @patch("mobiletestai.agent.loop.time.sleep")
-    @patch("mobiletestai.agent.loop._encode_image", return_value="AAAA")
-    @patch("mobiletestai.agent.loop.BridgeDevice")
-    @patch("mobiletestai.agent.loop.SimulatorManager")
-    @patch("mobiletestai.agent.loop.get_provider")
+    @patch("iostestagents.agent.loop.time.sleep")
+    @patch("iostestagents.agent.loop._encode_image", return_value="AAAA")
+    @patch("iostestagents.agent.loop.BridgeDevice")
+    @patch("iostestagents.agent.loop.SimulatorManager")
+    @patch("iostestagents.agent.loop.get_provider")
     def test_run_agent_fail_action(
         self, mock_get_provider, mock_sim_cls, mock_bridge_cls, mock_encode, mock_sleep, tmp_path
     ):
-        from mobiletestai.llm.base import LLMResponse
+        from iostestagents.llm.base import LLMResponse
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
@@ -343,15 +343,15 @@ class TestRunAgent:
         assert result.status == "failure"
         assert "not responding" in result.message
 
-    @patch("mobiletestai.agent.loop.time.sleep")
-    @patch("mobiletestai.agent.loop._encode_image", return_value="AAAA")
-    @patch("mobiletestai.agent.loop.BridgeDevice")
-    @patch("mobiletestai.agent.loop.SimulatorManager")
-    @patch("mobiletestai.agent.loop.get_provider")
+    @patch("iostestagents.agent.loop.time.sleep")
+    @patch("iostestagents.agent.loop._encode_image", return_value="AAAA")
+    @patch("iostestagents.agent.loop.BridgeDevice")
+    @patch("iostestagents.agent.loop.SimulatorManager")
+    @patch("iostestagents.agent.loop.get_provider")
     def test_run_agent_token_accumulation(
         self, mock_get_provider, mock_sim_cls, mock_bridge_cls, mock_encode, mock_sleep, tmp_path
     ):
-        from mobiletestai.llm.base import LLMResponse
+        from iostestagents.llm.base import LLMResponse
 
         mock_sim = mock_sim_cls.return_value
         mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")

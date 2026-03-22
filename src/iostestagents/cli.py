@@ -1,4 +1,4 @@
-"""CLI for mobiletestai — AI-powered iOS app testing."""
+"""CLI for iostestagents — AI-powered iOS app testing."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mobiletestai.device.bridge import BridgeDevice
-from mobiletestai.device.xcodebuildmcp import XcodeBuildMCPDevice
-from mobiletestai.util.logging import setup_logging
+from iostestagents.device.bridge import BridgeDevice
+from iostestagents.device.xcodebuildmcp import XcodeBuildMCPDevice
+from iostestagents.util.logging import setup_logging
 
 app = typer.Typer(
-    name="mobiletestai",
+    name="iostestagents",
     help="AI-powered iOS app testing framework",
     no_args_is_help=True,
 )
@@ -47,8 +47,8 @@ def run(
     """Run an AI agent to test an iOS app with a natural language goal."""
     setup_logging(verbose)
 
-    from mobiletestai.agent.loop import run_agent
-    from mobiletestai.device.simulator import SimulatorManager
+    from iostestagents.agent.loop import run_agent
+    from iostestagents.device.simulator import SimulatorManager
 
     # Resolve backend instance
     backend_instance = None
@@ -120,8 +120,8 @@ def scenario(
     """Run a multi-device scenario from a YAML file."""
     from pydantic import ValidationError
 
-    from mobiletestai.orchestrator.coordinator import Orchestrator
-    from mobiletestai.orchestrator.scenario import load_scenario
+    from iostestagents.orchestrator.coordinator import Orchestrator
+    from iostestagents.orchestrator.scenario import load_scenario
 
     setup_logging(verbose)
 

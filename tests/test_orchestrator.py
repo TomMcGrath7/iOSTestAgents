@@ -9,11 +9,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mobiletestai.agent.models import OrchestratorResult, RunResult, StepRecord, TokenUsage
-from mobiletestai.device.simulator import DeviceInfo
-from mobiletestai.orchestrator.coordinator import Orchestrator, OrchestratorError
-from mobiletestai.orchestrator.scenario import Scenario, ScenarioStep, load_scenario
-from mobiletestai.orchestrator.sync import AbortEvent, VariableStore
+from iostestagents.agent.models import OrchestratorResult, RunResult, StepRecord, TokenUsage
+from iostestagents.device.simulator import DeviceInfo
+from iostestagents.orchestrator.coordinator import Orchestrator, OrchestratorError
+from iostestagents.orchestrator.scenario import Scenario, ScenarioStep, load_scenario
+from iostestagents.orchestrator.sync import AbortEvent, VariableStore
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ class TestOrchestratorSinglePlayerSuccess:
         mock_sim = _make_mock_sim(n_devices=1)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -286,7 +286,7 @@ class TestOrchestratorSinglePlayerSuccess:
         mock_result = _make_success_result()
         mock_result.total_tokens = TokenUsage(input_tokens=200, output_tokens=100)
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -306,7 +306,7 @@ class TestOrchestratorTwoPlayersSerial:
         mock_sim = _make_mock_sim(n_devices=2)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -329,7 +329,7 @@ class TestOrchestratorFailFast:
         mock_sim = _make_mock_sim(n_devices=1)
         failure_result = RunResult(status="failure", message="Could not complete", goal="Step A")
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=failure_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=failure_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -348,7 +348,7 @@ class TestOrchestratorFailFast:
         mock_sim = _make_mock_sim(n_devices=1)
         failure_result = RunResult(status="failure", message="Failed", goal="Step A")
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=failure_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=failure_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -369,14 +369,14 @@ class TestOrchestratorVariableCapture:
         success_result = _make_success_result()
 
         mock_llm = MagicMock()
-        from mobiletestai.llm.base import LLMResponse
+        from iostestagents.llm.base import LLMResponse
         mock_llm.chat.return_value = LLMResponse(text="ABCD1234", input_tokens=10, output_tokens=5)
         mock_llm.default_model = "test-model"
         mock_llm.cost_per_input_token = 0.0
         mock_llm.cost_per_output_token = 0.0
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=success_result):
-            with patch("mobiletestai.orchestrator.coordinator.get_provider", return_value=mock_llm):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=success_result):
+            with patch("iostestagents.orchestrator.coordinator.get_provider", return_value=mock_llm):
                 orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
                 orch._sim = mock_sim
                 result = orch.run()
@@ -394,7 +394,7 @@ class TestOrchestratorVariableCapture:
         mock_sim = _make_mock_sim(n_devices=1)
         failure_result = RunResult(status="failure", message="Failed", goal="Create room")
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=failure_result):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=failure_result):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -412,7 +412,7 @@ class TestOrchestratorParallelStep:
         mock_sim = _make_mock_sim(n_devices=2)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -430,7 +430,7 @@ class TestOrchestratorParallelStep:
         mock_sim = _make_mock_sim(n_devices=3)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -445,7 +445,7 @@ class TestOrchestratorReport:
         mock_sim = _make_mock_sim(n_devices=1)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -462,7 +462,7 @@ class TestOrchestratorReport:
         mock_sim = _make_mock_sim(n_devices=1)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             result = orch.run()
@@ -481,7 +481,7 @@ class TestOrchestratorCleanup:
         mock_sim = _make_mock_sim(n_devices=1)
 
         with patch(
-            "mobiletestai.orchestrator.coordinator.run_agent",
+            "iostestagents.orchestrator.coordinator.run_agent",
             side_effect=RuntimeError("crash"),
         ):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
@@ -499,7 +499,7 @@ class TestOrchestratorCleanup:
         mock_sim = _make_mock_sim(n_devices=1)
         mock_result = _make_success_result()
 
-        with patch("mobiletestai.orchestrator.coordinator.run_agent", return_value=mock_result):
+        with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result):
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
             orch.run()
@@ -513,7 +513,7 @@ class TestOrchestratorCleanup:
 
 class TestSimulatorManagerListByName:
     def test_returns_matching_devices(self):
-        from mobiletestai.device.simulator import SimulatorManager
+        from iostestagents.device.simulator import SimulatorManager
 
         raw_output = json.dumps({
             "devices": {
@@ -537,7 +537,7 @@ class TestSimulatorManagerListByName:
         assert devices[0].runtime == "com.apple.CoreSimulator.SimRuntime.iOS-18-0"
 
     def test_returns_empty_for_no_match(self):
-        from mobiletestai.device.simulator import SimulatorManager
+        from iostestagents.device.simulator import SimulatorManager
 
         raw_output = json.dumps({
             "devices": {

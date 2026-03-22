@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from mobiletestai.device.base import DeviceBackend, DeviceError
-from mobiletestai.device.bridge import BridgeDevice, BridgeError
-from mobiletestai.device.xcodebuildmcp import XcodeBuildMCPDevice, XcodeBuildMCPError
+from iostestagents.device.base import DeviceBackend, DeviceError
+from iostestagents.device.bridge import BridgeDevice, BridgeError
+from iostestagents.device.xcodebuildmcp import XcodeBuildMCPDevice, XcodeBuildMCPError
 
 
 class TestProtocolConformance:

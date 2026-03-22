@@ -9,26 +9,26 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from mobiletestai.agent.models import (
+from iostestagents.agent.models import (
     ActionType,
     AgentAction,
     RunResult,
     StepRecord,
     TokenUsage,
 )
-from mobiletestai.agent.prompts import SYSTEM_PROMPT, build_user_prompt
-from mobiletestai.agent.ui_parser import (
+from iostestagents.agent.prompts import SYSTEM_PROMPT, build_user_prompt
+from iostestagents.agent.ui_parser import (
     build_element_list,
     check_goal_reached,
     detect_screen_title,
     parse_ui_elements,
     resolve_element,
 )
-from mobiletestai.device.base import DeviceBackend, DeviceError
-from mobiletestai.device.bridge import BridgeDevice
-from mobiletestai.device.simulator import SimulatorError, SimulatorManager
-from mobiletestai.llm.registry import get_provider
-from mobiletestai.util.logging import get_logger
+from iostestagents.device.base import DeviceBackend, DeviceError
+from iostestagents.device.bridge import BridgeDevice
+from iostestagents.device.simulator import SimulatorError, SimulatorManager
+from iostestagents.llm.registry import get_provider
+from iostestagents.util.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -189,7 +189,7 @@ def run_agent(
 
     # Find and boot device
     if device_udid:
-        from mobiletestai.device.simulator import DeviceInfo
+        from iostestagents.device.simulator import DeviceInfo
         device = DeviceInfo(name=device_name, udid=device_udid, runtime="", state="")
     else:
         logger.info(f"Finding device: {device_name}")

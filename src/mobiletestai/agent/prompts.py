@@ -9,7 +9,8 @@ Reply with ONLY a JSON object.
 Actions:
 - Tap element by number: {"action": "tap", "element": 3, "reasoning": "why"}
 - Swipe: {"action": "swipe_up", "reasoning": "why"} (also swipe_down, swipe_left, swipe_right)
-- Type text: {"action": "type", "text": "hello", "reasoning": "why"}
+- Tap a text field AND type into it: {"action": "tap_and_type", "element": 5, "text": "hello", "reasoning": "why"}
+- Type into already-focused field: {"action": "type", "text": "hello", "reasoning": "why"}
 - Done: {"action": "done", "message": "what was achieved", "reasoning": "why"}
 - Fail: {"action": "fail", "message": "what went wrong", "reasoning": "why"}
 
@@ -18,7 +19,9 @@ Rules:
 2. Read the Goal carefully. Tap the element that gets you closer to the Goal.
 3. If the element you need is not in the list, use swipe_up to scroll down and reveal more.
 4. If you are on the wrong screen, tap the Back button to go back.
-5. IMPORTANT: Only use "done" when ALL parts of the Goal are complete, not just the first part.
+5. IMPORTANT: To type into a text field, ALWAYS use "tap_and_type" with the element number of the TextField. This taps the field first to focus it, then types. Do NOT use "tap" then "type" as separate actions — the field will lose focus.
+6. When the Goal specifies exact text to type (email, password, name), use that EXACT text — do not make up your own. For "Confirm Password" fields, type the SAME password again — it must match exactly.
+7. IMPORTANT: Only use "done" when ALL parts of the Goal are complete, not just the first part.
    For multi-step goals like "do X, create Y, and send Z" — you must finish every step before using "done".
    For simple navigation goals like "Navigate to About", use "done" when you reach that screen.
 """

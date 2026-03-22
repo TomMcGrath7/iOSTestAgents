@@ -1,0 +1,6 @@
+# Example scenario: Navigate to a website in Safari
+device: "iPhone 17"
+app: "com.apple.mobilesafari"
+goal: "Open Safari, tap the address bar, type apple.com, and navigate to the page. Verify the Apple website loads."
+max_steps: 15
+step_delay: 1.5

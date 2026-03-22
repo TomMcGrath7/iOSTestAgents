@@ -1,5 +1,5 @@
 name: multiplayer_game_join
-app_bundle_id: com.example.wingman
+app_bundle_id: com.example.myapp
 players: 2
 device: "iPhone 16"
 backend: xcodebuildmcp

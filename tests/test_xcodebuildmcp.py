@@ -16,7 +16,7 @@ class TestXcodeBuildMCPDevice:
         with patch.object(device, "_run") as mock_run:
             device.tap(100, 200)
             mock_run.assert_called_once_with(
-                ["ui-automation", "tap", "-x", "100", "-y", "200", "--simulator-id", "test-udid"]
+                ["ui-automation", "tap", "-x", "100", "-y", "200", "--post-delay", "0.5", "--simulator-id", "test-udid"]
             )
 
     def test_swipe_runs_correct_command(self):

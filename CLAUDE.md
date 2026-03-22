@@ -4,8 +4,6 @@
 
 An AI-powered iOS app testing framework. LLM agents autonomously navigate and test iOS apps on simulators. The unique differentiator is **multi-device orchestration** — coordinating N agents across N simulators for multiplayer/collaborative app testing. Nobody else has built this.
 
-Dogfood target: **Wingman** (multiplayer iOS app). Framework is app-agnostic.
-
 Repo: `/Users/tom/Documents/GitHub/MobileAppTesterAgent`
 Package: `mobiletestai`
 
@@ -152,7 +150,7 @@ orchestrator/
 Scenario format:
 ```yaml
 name: multiplayer_game_join
-app_bundle_id: com.example.wingman
+app_bundle_id: com.example.myapp
 players: 2
 steps:
   - player: 1
@@ -265,7 +263,7 @@ Rules:
 npm install -g xcodebuildmcp@latest
 
 # Project
-cd /Users/tom/Documents/GitHub/MobileAppTesterAgent
+cd MobileAppTesterAgent
 uv sync --extra dev
 export ANTHROPIC_API_KEY="..."
 

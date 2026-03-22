@@ -16,6 +16,7 @@ class ActionType(str, Enum):
     SWIPE_LEFT = "swipe_left"
     SWIPE_RIGHT = "swipe_right"
     TYPE = "type"
+    TAP_AND_TYPE = "tap_and_type"
     PRESS_BUTTON = "press_button"
     WAIT = "wait"
     DONE = "done"

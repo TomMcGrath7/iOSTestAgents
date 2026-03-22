@@ -122,9 +122,17 @@ def _parse_json_ui(ui_state: str) -> list[UIElement]:
     elements: list[UIElement] = []
     idx_counter = [1]  # mutable counter for nested recursion
 
+    last_text_label = [""]  # track last StaticText label for unlabeled fields
+
     def _walk(node: dict) -> None:
         el_type = node.get("type", "")
         label = node.get("AXLabel") or node.get("title") or ""
+        # Track labels from StaticText so we can assign them to unlabeled input fields
+        if el_type == "StaticText" and label:
+            last_text_label[0] = label
+        # For input fields without labels, use the preceding StaticText label
+        if not label and el_type in ("TextField", "SecureTextField", "SearchField"):
+            label = f"{last_text_label[0]} field" if last_text_label[0] else el_type
         frame = node.get("frame", {})
         x = frame.get("x", 0)
         y = frame.get("y", 0)

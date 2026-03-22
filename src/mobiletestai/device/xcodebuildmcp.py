@@ -54,7 +54,7 @@ class XcodeBuildMCPDevice:
 
     def tap(self, x: int, y: int) -> None:
         logger.debug(f"Tap ({x}, {y})")
-        self._run(["ui-automation", "tap", "-x", str(x), "-y", str(y), "--simulator-id", self.udid])
+        self._run(["ui-automation", "tap", "-x", str(x), "-y", str(y), "--post-delay", "0.5", "--simulator-id", self.udid])
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.3) -> None:
         logger.debug(f"Swipe ({x1},{y1}) -> ({x2},{y2})")
@@ -68,6 +68,9 @@ class XcodeBuildMCPDevice:
 
     def type_text(self, text: str) -> None:
         logger.debug(f"Type text: {text!r}")
+        # Small delay to ensure keyboard is visible after a prior tap
+        import time
+        time.sleep(0.5)
         self._run(["ui-automation", "type-text", "--text", text, "--simulator-id", self.udid])
 
     def press_button(self, button: str) -> None:

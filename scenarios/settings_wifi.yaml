@@ -1,0 +1,6 @@
+# Example scenario: Navigate to Wi-Fi settings
+device: "iPhone 17"
+app: "com.apple.Preferences"
+goal: "Navigate to Wi-Fi settings and verify the Wi-Fi toggle is visible"
+max_steps: 10
+step_delay: 1.5

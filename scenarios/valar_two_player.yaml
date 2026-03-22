@@ -1,6 +1,6 @@
 name: valar_two_player_explore
-app_bundle_id: com.mcgrathtrading.ValarMorghulis
-app_path: "/Users/tom/Library/Developer/Xcode/DerivedData/Valar-Morghulis-gtrntfhecpfmoxdqeaqlbyauyony/Build/Products/Debug-iphonesimulator/Valar-Morghulis.app"
+app_bundle_id: com.example.ValarMorghulis
+app_path: "/path/to/YourApp.app"
 players: 2
 device: "iPhone 17"
 backend: testbridge

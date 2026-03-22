@@ -145,6 +145,12 @@ def _execute_action(
             backend.swipe(cx - horiz_offset, cy, cx + horiz_offset, cy)
         case ActionType.TYPE:
             backend.type_text(action.text or "")
+        case ActionType.TAP_AND_TYPE:
+            if action.x is None or action.y is None:
+                raise DeviceError(f"tap_and_type action missing coordinates (x={action.x}, y={action.y})")
+            backend.tap(action.x, action.y)
+            time.sleep(1.0)  # wait for keyboard to appear
+            backend.type_text(action.text or "")
         case ActionType.PRESS_BUTTON:
             backend.press_button(action.button or "HOME")
         case ActionType.WAIT:

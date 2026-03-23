@@ -1,6 +1,6 @@
 # MobileTestAI
 
-[![Tests](https://github.com/TomMcGrath7/MobileAppTesterAgent/actions/workflows/tests.yml/badge.svg)](https://github.com/TomMcGrath7/MobileAppTesterAgent/actions/workflows/tests.yml)
+[![Tests](https://github.com/TomMcGrath7/iOSTestAgents/actions/workflows/tests.yml/badge.svg)](https://github.com/TomMcGrath7/iOSTestAgents/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/downloads/)
 
@@ -54,8 +54,8 @@ The agent uses structured text from the accessibility tree rather than vision al
 
 ```bash
 # Clone the repo
-git clone https://github.com/TomMcGrath7/MobileAppTesterAgent.git
-cd MobileAppTesterAgent
+git clone https://github.com/TomMcGrath7/iOSTestAgents.git
+cd iOSTestAgents
 
 # Install Python dependencies
 uv sync --extra dev

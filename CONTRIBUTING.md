@@ -6,8 +6,8 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 ```bash
 # Clone the repo
-git clone https://github.com/TomMcGrath7/MobileAppTesterAgent.git
-cd MobileAppTesterAgent
+git clone https://github.com/TomMcGrath7/iOSTestAgents.git
+cd iOSTestAgents
 
 # Install dependencies
 uv sync --extra dev

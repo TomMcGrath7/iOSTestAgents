@@ -12,7 +12,7 @@ AI-powered iOS app testing. Point it at a simulator app, describe what you want 
 ## Quick Start
 
 ```bash
-cd /path/to/MobileAppTesterAgent
+cd /path/to/iOSTestAgents
 uv sync --extra dev
 
 # Check everything is configured

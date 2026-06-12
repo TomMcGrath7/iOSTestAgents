@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 (2026-06-12)
+
 LLM layer modernization.
 
 - **Structured outputs**: Anthropic (`client.messages.parse`) and OpenAI

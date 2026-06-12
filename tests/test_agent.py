@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from iostestagents.agent.models import ActionType, AgentAction, RunResult, StepRecord, TokenUsage
-from iostestagents.agent.prompts import build_user_prompt, SYSTEM_PROMPT
-from iostestagents.agent.loop import _parse_action, _execute_action, run_agent
+from iostestagents.agent.loop import _execute_action, _parse_action, run_agent
+from iostestagents.agent.models import ActionType, AgentAction, RunResult, TokenUsage
+from iostestagents.agent.prompts import SYSTEM_PROMPT, build_user_prompt
 
 
 class TestModels:
@@ -68,23 +68,33 @@ class TestPrompts:
             {"action": "wait", "reasoning": "loading"},
         ]
         prompt = build_user_prompt(
-            goal="test", step=3, max_steps=10,
-            action_history=history, ui_state="tree",
+            goal="test",
+            step=3,
+            max_steps=10,
+            action_history=history,
+            ui_state="tree",
         )
         assert "Recent actions" in prompt
         assert "tapped button" in prompt
 
     def test_build_user_prompt_stuck(self):
         prompt = build_user_prompt(
-            goal="test", step=5, max_steps=10,
-            action_history=[], ui_state="tree", ui_stuck=True,
+            goal="test",
+            step=5,
+            max_steps=10,
+            action_history=[],
+            ui_state="tree",
+            ui_stuck=True,
         )
         assert "not changed" in prompt.lower() or "warning" in prompt.lower()
 
     def test_build_user_prompt_with_element_list(self):
         prompt = build_user_prompt(
-            goal="test", step=1, max_steps=10,
-            action_history=[], ui_state="tree",
+            goal="test",
+            step=1,
+            max_steps=10,
+            action_history=[],
+            ui_state="tree",
             element_list="[1] Button 'OK' center=(40, 22)",
         )
         assert "Tappable elements" in prompt
@@ -93,8 +103,11 @@ class TestPrompts:
     def test_build_user_prompt_with_error_in_history(self):
         history = [{"action": "tap", "reasoning": "try", "error": "element not found"}]
         prompt = build_user_prompt(
-            goal="test", step=2, max_steps=10,
-            action_history=history, ui_state="tree",
+            goal="test",
+            step=2,
+            max_steps=10,
+            action_history=history,
+            ui_state="tree",
         )
         assert "ERROR" in prompt
 
@@ -116,12 +129,14 @@ class TestParseAction:
             _parse_action("not json at all")
 
     def test_parse_invalid_action_type(self):
-        with pytest.raises(Exception):
-            _parse_action('{"action": "fly", "reasoning": "impossible"}')
+        from pydantic import ValidationError
 
+        with pytest.raises(ValidationError):
+            _parse_action('{"action": "fly", "reasoning": "impossible"}')
 
     def test_parse_with_element_reference(self):
         from iostestagents.agent.ui_parser import parse_ui_elements
+
         ui = "Cell 'General' {{0, 500}, {393, 44}}"
         elements = parse_ui_elements(ui)
         raw = '{"action": "tap", "element": 1, "reasoning": "tap General"}'
@@ -132,6 +147,7 @@ class TestParseAction:
 
     def test_parse_with_target_name(self):
         from iostestagents.agent.ui_parser import parse_ui_elements
+
         ui = "Button 'Back' {{0, 44}, {80, 44}}"
         elements = parse_ui_elements(ui)
         raw = '{"action": "tap", "target": "Back", "reasoning": "go back"}'
@@ -145,6 +161,64 @@ class TestParseAction:
         raw = '{"action": "tap", "element": 1, "reasoning": "tap"}'
         action = _parse_action(raw)
         assert action.action == ActionType.TAP
+        assert action.x is None
+
+    def test_parse_action_alias_click(self):
+        action = _parse_action('{"action": "click", "reasoning": "press it", "x": 5, "y": 6}')
+        assert action.action == ActionType.TAP
+
+    def test_parse_action_alias_scroll_down(self):
+        action = _parse_action('{"action": "scroll_down", "reasoning": "scroll"}')
+        assert action.action == ActionType.SWIPE_DOWN
+
+    def test_parse_action_alias_back_sets_home_button(self):
+        action = _parse_action('{"action": "back", "reasoning": "go back"}')
+        assert action.action == ActionType.PRESS_BUTTON
+        assert action.button == "HOME"
+
+
+class TestAgentActionAliases:
+    """Aliases are normalized by the AgentAction model itself, so both the
+    structured-output path and the _parse_action fallback benefit."""
+
+    def test_model_normalizes_click(self):
+        action = AgentAction(action="click", reasoning="r")
+        assert action.action == ActionType.TAP
+
+    def test_model_normalizes_scroll_up(self):
+        action = AgentAction(action="scroll_up")
+        assert action.action == ActionType.SWIPE_UP
+
+    def test_model_normalizes_back(self):
+        action = AgentAction(action="back")
+        assert action.action == ActionType.PRESS_BUTTON
+        assert action.button == "HOME"
+
+    def test_model_rejects_unknown_action(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            AgentAction(action="fly")
+
+
+class TestResolveActionRefs:
+    def test_resolves_element_to_coordinates(self):
+        from iostestagents.agent.loop import _resolve_action_refs
+        from iostestagents.agent.ui_parser import parse_ui_elements
+
+        elements = parse_ui_elements("Cell 'General' {{0, 500}, {393, 44}}")
+        action = AgentAction(action=ActionType.TAP, element=1)
+        _resolve_action_refs(action, ui_elements=elements)
+        assert action.x == 196
+        assert action.y == 522
+
+    def test_ignores_element_not_shown(self):
+        from iostestagents.agent.loop import _resolve_action_refs
+        from iostestagents.agent.ui_parser import parse_ui_elements
+
+        elements = parse_ui_elements("Cell 'General' {{0, 500}, {393, 44}}")
+        action = AgentAction(action=ActionType.TAP, element=1)
+        _resolve_action_refs(action, ui_elements=elements, shown_indices={2, 3})
         assert action.x is None
 
 
@@ -207,15 +281,26 @@ class TestExecuteAction:
         idb.tap.assert_not_called()
 
 
-def _make_mock_provider(chat_return=None, chat_side_effect=None):
-    """Create a mock LLM provider."""
-    from iostestagents.llm.base import LLMResponse
+def _mock_estimate_cost(
+    model,
+    input_tokens=0,
+    output_tokens=0,
+    cache_read_input_tokens=0,
+    cache_creation_input_tokens=0,
+):
+    return (input_tokens * 3.0 + output_tokens * 15.0) / 1_000_000
 
+
+def _make_mock_provider(chat_return=None, chat_side_effect=None, structured_return=None):
+    """Create a mock LLM provider. By default it takes the text/_parse_action
+    fallback path; pass structured_return for the structured-output path."""
     provider = MagicMock()
     provider.name = "mock"
     provider.default_model = "mock-model"
-    provider.cost_per_input_token = 3.0 / 1_000_000
-    provider.cost_per_output_token = 15.0 / 1_000_000
+    provider.supports_structured_output = structured_return is not None
+    provider.estimate_cost.side_effect = _mock_estimate_cost
+    if structured_return is not None:
+        provider.chat_structured.return_value = structured_return
     if chat_side_effect:
         provider.chat.side_effect = chat_side_effect
     elif chat_return:
@@ -236,9 +321,7 @@ class TestRunAgent:
 
         # Setup simulator mock
         mock_sim = mock_sim_cls.return_value
-        mock_sim.find_device.return_value = MagicMock(
-            name="iPhone 16", udid="test-udid"
-        )
+        mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="test-udid")
         mock_sim.get_screen_size.return_value = (393, 852)
 
         # Setup Bridge mock
@@ -361,10 +444,12 @@ class TestRunAgent:
         # Return different UI each time to avoid stale detection
         mock_bridge.describe_ui.side_effect = ["UI v1", "UI v2", "UI v3"]
 
+        tap = '{"action": "tap", "reasoning": "try", "x": 10, "y": 10}'
+        done = '{"action": "done", "reasoning": "ok", "message": "done"}'
         responses = [
-            LLMResponse(text='{"action": "tap", "reasoning": "try", "x": 10, "y": 10}', input_tokens=100, output_tokens=20),
-            LLMResponse(text='{"action": "tap", "reasoning": "try", "x": 10, "y": 10}', input_tokens=100, output_tokens=20),
-            LLMResponse(text='{"action": "done", "reasoning": "ok", "message": "done"}', input_tokens=100, output_tokens=20),
+            LLMResponse(text=tap, input_tokens=100, output_tokens=20),
+            LLMResponse(text=tap, input_tokens=100, output_tokens=20),
+            LLMResponse(text=done, input_tokens=100, output_tokens=20),
         ]
         mock_get_provider.return_value = _make_mock_provider(chat_side_effect=responses)
 
@@ -380,3 +465,57 @@ class TestRunAgent:
         assert result.status == "success"
         assert result.total_tokens.input_tokens == 300
         assert result.total_tokens.output_tokens == 60
+
+    @patch("iostestagents.agent.loop.time.sleep")
+    @patch("iostestagents.agent.loop._encode_image", return_value="AAAA")
+    @patch("iostestagents.agent.loop.BridgeDevice")
+    @patch("iostestagents.agent.loop.SimulatorManager")
+    @patch("iostestagents.agent.loop.get_provider")
+    def test_run_agent_structured_output_path(
+        self, mock_get_provider, mock_sim_cls, mock_bridge_cls, mock_encode, mock_sleep, tmp_path
+    ):
+        """Providers with structured output get a validated AgentAction directly —
+        no text parsing, no retry loop."""
+        from iostestagents.llm.base import StructuredLLMResponse
+
+        mock_sim = mock_sim_cls.return_value
+        mock_sim.find_device.return_value = MagicMock(name="iPhone 16", udid="udid")
+        mock_sim.get_screen_size.return_value = (393, 852)
+
+        mock_bridge = mock_bridge_cls.return_value
+        mock_bridge.describe_ui.return_value = "AXButton 'Settings'"
+
+        structured = StructuredLLMResponse(
+            parsed=AgentAction(action=ActionType.DONE, reasoning="goal met", message="All set"),
+            input_tokens=400,
+            output_tokens=40,
+            cache_read_input_tokens=350,
+            cache_creation_input_tokens=50,
+        )
+        provider = _make_mock_provider(structured_return=structured)
+        mock_get_provider.return_value = provider
+
+        result = run_agent(
+            goal="Open settings",
+            device_name="iPhone 16",
+            bundle_id="com.test",
+            output_dir=tmp_path,
+            step_delay=0,
+        )
+
+        assert result.status == "success"
+        assert result.message == "All set"
+        provider.chat_structured.assert_called_once()
+        provider.chat.assert_not_called()
+        # Structured output passes AgentAction as the schema
+        assert provider.chat_structured.call_args.kwargs["output_model"] is AgentAction
+        # Cache tokens are tracked and cost is estimated with the model used
+        assert result.total_tokens.cache_read_input_tokens == 350
+        assert result.total_tokens.cache_creation_input_tokens == 50
+        provider.estimate_cost.assert_called_once_with(
+            "mock-model",
+            input_tokens=400,
+            output_tokens=40,
+            cache_read_input_tokens=350,
+            cache_creation_input_tokens=50,
+        )

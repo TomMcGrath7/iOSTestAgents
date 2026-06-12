@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -35,12 +34,12 @@ class XcodeBuildMCPDevice:
                 text=True,
                 timeout=timeout,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise XcodeBuildMCPError(
                 "xcodebuildmcp not found. Install with: npm install -g xcodebuildmcp@latest"
-            )
-        except subprocess.TimeoutExpired:
-            raise XcodeBuildMCPError(f"xcodebuildmcp command timed out after {timeout}s: {' '.join(args)}")
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise XcodeBuildMCPError(f"xcodebuildmcp command timed out after {timeout}s: {' '.join(args)}") from exc
 
         if result.returncode != 0:
             raise XcodeBuildMCPError(
@@ -54,22 +53,36 @@ class XcodeBuildMCPDevice:
 
     def tap(self, x: int, y: int) -> None:
         logger.debug(f"Tap ({x}, {y})")
-        self._run(["ui-automation", "tap", "-x", str(x), "-y", str(y), "--post-delay", "0.5", "--simulator-id", self.udid])
+        self._run(
+            ["ui-automation", "tap", "-x", str(x), "-y", str(y), "--post-delay", "0.5", "--simulator-id", self.udid]
+        )
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.3) -> None:
         logger.debug(f"Swipe ({x1},{y1}) -> ({x2},{y2})")
-        self._run([
-            "ui-automation", "swipe",
-            "--x1", str(x1), "--y1", str(y1),
-            "--x2", str(x2), "--y2", str(y2),
-            "--duration", str(duration),
-            "--simulator-id", self.udid,
-        ])
+        self._run(
+            [
+                "ui-automation",
+                "swipe",
+                "--x1",
+                str(x1),
+                "--y1",
+                str(y1),
+                "--x2",
+                str(x2),
+                "--y2",
+                str(y2),
+                "--duration",
+                str(duration),
+                "--simulator-id",
+                self.udid,
+            ]
+        )
 
     def type_text(self, text: str) -> None:
         logger.debug(f"Type text: {text!r}")
         # Small delay to ensure keyboard is visible after a prior tap
         import time
+
         time.sleep(0.5)
         self._run(["ui-automation", "type-text", "--text", text, "--simulator-id", self.udid])
 
@@ -80,9 +93,7 @@ class XcodeBuildMCPDevice:
     def start(self, timeout: int = 30, output_dir: str | Path = "output") -> None:
         """Verify xcodebuildmcp is available. CLI is stateless, no server to start."""
         if not self.is_available():
-            raise XcodeBuildMCPError(
-                "xcodebuildmcp not found. Install with: npm install -g xcodebuildmcp@latest"
-            )
+            raise XcodeBuildMCPError("xcodebuildmcp not found. Install with: npm install -g xcodebuildmcp@latest")
         logger.info("XcodeBuildMCP backend ready (stateless CLI)")
 
     def stop(self) -> None:

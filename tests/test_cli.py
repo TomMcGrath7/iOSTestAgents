@@ -6,7 +6,6 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from iostestagents.cli import app
@@ -22,9 +21,7 @@ class TestDoctorCommand:
     def test_doctor_all_pass(self, mock_run, mock_urlopen, mock_bridge_cls, mock_mcp_cls):
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout=json.dumps(
-                {"devices": {"runtime": [{"name": "iPhone", "isAvailable": True}]}}
-            ),
+            stdout=json.dumps({"devices": {"runtime": [{"name": "iPhone", "isAvailable": True}]}}),
             stderr="",
         )
         mock_bridge_cls.is_available.return_value = True
@@ -97,10 +94,14 @@ class TestRunCommand:
             app,
             [
                 "run",
-                "--device", "iPhone 16",
-                "--app", "com.test",
-                "--goal", "test goal",
-                "--output", str(tmp_path),
+                "--device",
+                "iPhone 16",
+                "--app",
+                "com.test",
+                "--goal",
+                "test goal",
+                "--output",
+                str(tmp_path),
             ],
         )
         assert result.exit_code == 0
@@ -123,10 +124,14 @@ class TestRunCommand:
             app,
             [
                 "run",
-                "--device", "iPhone 16",
-                "--app", "com.test",
-                "--goal", "test goal",
-                "--output", str(tmp_path),
+                "--device",
+                "iPhone 16",
+                "--app",
+                "com.test",
+                "--goal",
+                "test goal",
+                "--output",
+                str(tmp_path),
             ],
         )
         assert result.exit_code == 1

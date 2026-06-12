@@ -86,11 +86,11 @@ ollama pull qwen3:8b
 
 MobileTestAI auto-detects Ollama when it's running on `localhost:11434`.
 
-> **Note on local models:** Local models work but performance scales with model capability. Smaller models (7-8B parameters) can handle simple navigation tasks like "go to Settings > General". For complex multi-step flows, onboarding sequences, or apps with non-obvious UI patterns, cloud models (GPT-4o, Claude) perform significantly better. We recommend starting with Ollama to try things out, then switching to a cloud provider for production use.
+> **Note on local models:** Local models work but performance scales with model capability. Smaller models (7-8B parameters) can handle simple navigation tasks like "go to Settings > General". For complex multi-step flows, onboarding sequences, or apps with non-obvious UI patterns, cloud models (GPT-5.4, Claude) perform significantly better. We recommend starting with Ollama to try things out, then switching to a cloud provider for production use.
 
 ### Option 2: OpenAI
 
-Best balance of speed and capability. GPT-4o is the recommended model.
+Best balance of speed and capability. GPT-5.4 is the recommended model (current generation at the old gpt-4o price point); use gpt-5.5 for the premium flagship.
 
 ```bash
 export OPENAI_API_KEY="sk-..."
@@ -99,6 +99,8 @@ export OPENAI_API_KEY="sk-..."
 Get your API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
 
 ### Option 3: Anthropic (Claude)
+
+The default model is `claude-opus-4-8`. For cheaper per-step costs on simple navigation tasks, use `--model claude-haiku-4-5` ($1/$5 per 1M tokens vs $5/$25 for Opus).
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
@@ -111,15 +113,16 @@ Get your API key at [console.anthropic.com](https://console.anthropic.com/).
 | Provider | Cost | Speed | Quality | Privacy |
 |---|---|---|---|---|
 | **Ollama** (qwen3:8b) | Free | ~15-20s/step | Good for simple tasks | Full — runs locally |
-| **OpenAI** (gpt-4o) | ~$0.01-0.03/step | ~3-5s/step | Excellent | Data sent to OpenAI |
-| **Anthropic** (claude-sonnet) | ~$0.01-0.03/step | ~3-5s/step | Excellent | Data sent to Anthropic |
+| **OpenAI** (gpt-5.4) | ~$0.01-0.03/step | ~3-5s/step | Excellent | Data sent to OpenAI |
+| **Anthropic** (claude-opus-4-8) | ~$0.01-0.05/step | ~3-5s/step | Excellent | Data sent to Anthropic |
+| **Anthropic** (claude-haiku-4-5) | ~$0.005-0.01/step | ~2-4s/step | Good | Data sent to Anthropic |
 
 You can override the auto-detected provider with `--provider` and `--model`:
 
 ```bash
 uv run iostestagents run --provider ollama --model qwen3:8b ...
-uv run iostestagents run --provider openai --model gpt-4o ...
-uv run iostestagents run --provider anthropic --model claude-sonnet-4-5-20250929 ...
+uv run iostestagents run --provider openai --model gpt-5.4 ...
+uv run iostestagents run --provider anthropic --model claude-haiku-4-5 ...  # cheap per-step option
 ```
 
 ## Quick Start
@@ -140,7 +143,7 @@ uv run iostestagents run \
   --device "iPhone 17" \
   --app com.apple.mobilesafari \
   --goal "Open Safari, tap the address bar, type apple.com, and verify the page loads" \
-  --provider openai --model gpt-4o \
+  --provider openai --model gpt-5.4 \
   --record
 ```
 
@@ -162,7 +165,7 @@ players: 2
 device: "iPhone 17"
 backend: xcodebuildmcp
 provider: openai
-model: gpt-4o
+model: gpt-5.4
 max_steps: 30
 
 steps:

@@ -42,8 +42,33 @@ def _encode_image(path: Path) -> str:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
+def _resolve_action_refs(
+    action: AgentAction,
+    ui_elements: list | None = None,
+    shown_indices: set[int] | None = None,
+) -> None:
+    """Resolve an action's "element" number or "target" name to x/y coordinates."""
+    if action.element is not None and action.x is None and ui_elements:
+        idx = action.element
+        # Only resolve elements the LLM was actually shown
+        if shown_indices and idx not in shown_indices:
+            logger.warning(f"LLM referenced element [{idx}] which was not in the shown list — ignoring")
+        else:
+            result = resolve_element(ui_elements, index=idx)
+            if result:
+                action.x, action.y = result
+                logger.info(f"Resolved element [{idx}] to ({result[0]}, {result[1]})")
+
+    if action.target is not None and action.x is None and ui_elements:
+        result = resolve_element(ui_elements, target=action.target)
+        if result:
+            action.x, action.y = result
+            logger.info(f"Resolved target '{action.target}' to ({result[0]}, {result[1]})")
+
+
 def _parse_action(raw: str, ui_elements: list | None = None, shown_indices: set[int] | None = None) -> AgentAction:
-    """Parse LLM response into AgentAction, normalizing common format variations.
+    """Parse a raw-text LLM response into AgentAction, normalizing common
+    format variations. Fallback path for providers without structured output.
 
     If ui_elements is provided, resolves "element" numbers and "target" names
     to x/y coordinates automatically.
@@ -51,7 +76,7 @@ def _parse_action(raw: str, ui_elements: list | None = None, shown_indices: set[
     text = raw.strip()
     if text.startswith("```"):
         lines = text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         text = "\n".join(lines).strip()
     data = json.loads(text)
 
@@ -69,54 +94,23 @@ def _parse_action(raw: str, ui_elements: list | None = None, shown_indices: set[
     if "reason" in data and "reasoning" not in data:
         data["reasoning"] = data.pop("reason")
 
-    # Resolve "element" number to x/y coordinates
-    element_ref = data.pop("element", None)
-    if element_ref is not None and data.get("x") is None and ui_elements:
+    # "element"/"target" may arrive as strings — coerce before validation
+    if data.get("element") is not None:
         try:
-            idx = int(element_ref)
-            # Only resolve elements the LLM was actually shown
-            if shown_indices and idx not in shown_indices:
-                logger.warning(f"LLM referenced element [{idx}] which was not in the shown list — ignoring")
-            else:
-                result = resolve_element(ui_elements, index=idx)
-                if result:
-                    data["x"], data["y"] = result
-                    logger.info(f"Resolved element [{idx}] to ({result[0]}, {result[1]})")
+            data["element"] = int(data["element"])
         except (ValueError, TypeError):
-            pass
+            data.pop("element")
+    if data.get("target") is not None and not isinstance(data["target"], str):
+        data["target"] = str(data["target"])
 
-    # Resolve "target" name to x/y coordinates
-    target = data.pop("target", None)
-    if target is not None and data.get("x") is None and ui_elements:
-        target_str = str(target) if not isinstance(target, str) else target
-        result = resolve_element(ui_elements, target=target_str)
-        if result:
-            data["x"], data["y"] = result
-            logger.info(f"Resolved target '{target_str}' to ({result[0]}, {result[1]})")
-
-    # Normalize common action name variations
-    action_aliases = {
-        "click": "tap",
-        "press": "tap",
-        "scroll_down": "swipe_down",
-        "scroll_up": "swipe_up",
-        "scroll_left": "swipe_left",
-        "scroll_right": "swipe_right",
-        "swipe": "swipe_down",
-        "scroll": "swipe_down",
-        "back": "press_button",
-    }
-    action_val = data.get("action", "")
-    if action_val in action_aliases:
-        data["action"] = action_aliases[action_val]
-        if action_val == "back":
-            data["button"] = "HOME"
-
-    # Drop unknown fields that would fail Pydantic validation
-    known = {"action", "reasoning", "x", "y", "text", "button", "message"}
+    # Drop unknown fields that would fail Pydantic validation.
+    # Action-name aliases (click->tap etc.) are normalized by AgentAction itself.
+    known = {"action", "reasoning", "element", "target", "x", "y", "text", "button", "message"}
     data = {k: v for k, v in data.items() if k in known}
 
-    return AgentAction(**data)
+    action = AgentAction(**data)
+    _resolve_action_refs(action, ui_elements=ui_elements, shown_indices=shown_indices)
+    return action
 
 
 def _execute_action(
@@ -190,6 +184,7 @@ def run_agent(
     # Find and boot device
     if device_udid:
         from iostestagents.device.simulator import DeviceInfo
+
         device = DeviceInfo(name=device_name, udid=device_udid, runtime="", state="")
     else:
         logger.info(f"Finding device: {device_name}")
@@ -201,10 +196,12 @@ def run_agent(
     screen_width, screen_height = sim.get_screen_size(device.udid)
     logger.info(f"Screen dimensions: {screen_width}x{screen_height}")
 
-    owns_backend = backend is None
-    if owns_backend:
+    if backend is None:
+        owns_backend = True
         backend = BridgeDevice(device.udid, bundle_id=bundle_id)
         backend.start(output_dir=output_path)
+    else:
+        owns_backend = False
 
     # Reset app for clean state
     if reset:
@@ -248,8 +245,11 @@ def run_agent(
                 sim.launch_app(device.udid, bundle_id)
                 time.sleep(2.0)
                 ui_state = backend.describe_ui()
-            logger.info(f"UI state ({len(ui_state)} chars): {ui_state[:300]}..."
-                        if len(ui_state) > 300 else f"UI state ({len(ui_state)} chars): {ui_state}")
+            logger.info(
+                f"UI state ({len(ui_state)} chars): {ui_state[:300]}..."
+                if len(ui_state) > 300
+                else f"UI state ({len(ui_state)} chars): {ui_state}"
+            )
             screenshot_path = output_path / f"{result.run_id}_step{step_num:03d}.png"
             try:
                 sim.screenshot(device.udid, screenshot_path)
@@ -300,7 +300,8 @@ def run_agent(
             if len(action_history) >= 2:
                 last = action_history[-1]
                 for prev in reversed(action_history[:-1]):
-                    if prev.get("action") == last.get("action") and prev.get("reasoning", "")[:30] == last.get("reasoning", "")[:30]:
+                    same_action = prev.get("action") == last.get("action")
+                    if same_action and prev.get("reasoning", "")[:30] == last.get("reasoning", "")[:30]:
                         repeat_count += 1
                     else:
                         break
@@ -349,42 +350,74 @@ def run_agent(
             action = None
             # Use vision model when doing vision fallback, otherwise normal model
             step_model = vision_model if (use_vision_fallback and vision_model) else model
-            for attempt in range(3):
-                try:
-                    llm_response = llm.chat(
-                        model=step_model,
-                        system=SYSTEM_PROMPT,
-                        messages_content=messages_content,
-                        max_tokens=1024,
-                    )
-                    step.token_usage = TokenUsage(
-                        input_tokens=llm_response.input_tokens,
-                        output_tokens=llm_response.output_tokens,
-                    )
-                    raw_text = llm_response.text
-                    logger.info(f"LLM raw response: {raw_text[:500]}")
-                    action = _parse_action(raw_text, ui_elements=ui_elements, shown_indices=shown_element_indices)
-                    break
-                except (json.JSONDecodeError, ValidationError, KeyError) as exc:
-                    logger.warning(f"Parse attempt {attempt + 1} failed: {exc}")
-                    if attempt < 2:
-                        messages_content.append(
-                            {
-                                "type": "text",
-                                "text": f"Your previous response was not valid JSON: {exc}. "
-                                "Please respond with ONLY a valid JSON object.",
-                            }
+            if llm.supports_structured_output:
+                # Schema-enforced output: the SDK validates the response into
+                # AgentAction directly — no text parsing, no retry-on-parse.
+                structured = llm.chat_structured(
+                    model=step_model,
+                    system=SYSTEM_PROMPT,
+                    messages_content=messages_content,
+                    output_model=AgentAction,
+                    max_tokens=1024,
+                )
+                step.token_usage = TokenUsage(
+                    input_tokens=structured.input_tokens,
+                    output_tokens=structured.output_tokens,
+                    cache_read_input_tokens=structured.cache_read_input_tokens,
+                    cache_creation_input_tokens=structured.cache_creation_input_tokens,
+                )
+                action = structured.parsed
+                _resolve_action_refs(action, ui_elements=ui_elements, shown_indices=shown_element_indices)
+                logger.info(f"LLM structured action: {action.action.value} — {action.reasoning}")
+            else:
+                # Fallback path: raw text + _parse_action with retries
+                for attempt in range(3):
+                    try:
+                        llm_response = llm.chat(
+                            model=step_model,
+                            system=SYSTEM_PROMPT,
+                            messages_content=messages_content,
+                            max_tokens=1024,
                         )
-                    else:
-                        step.success = False
-                        step.error = f"Failed to parse LLM response after 3 attempts: {exc}"
+                        step.token_usage = TokenUsage(
+                            input_tokens=llm_response.input_tokens,
+                            output_tokens=llm_response.output_tokens,
+                            cache_read_input_tokens=llm_response.cache_read_input_tokens,
+                            cache_creation_input_tokens=llm_response.cache_creation_input_tokens,
+                        )
+                        raw_text = llm_response.text
+                        logger.info(f"LLM raw response: {raw_text[:500]}")
+                        action = _parse_action(raw_text, ui_elements=ui_elements, shown_indices=shown_element_indices)
+                        break
+                    except (json.JSONDecodeError, ValidationError, KeyError) as exc:
+                        logger.warning(f"Parse attempt {attempt + 1} failed: {exc}")
+                        if attempt < 2:
+                            messages_content.append(
+                                {
+                                    "type": "text",
+                                    "text": f"Your previous response was not valid JSON: {exc}. "
+                                    "Please respond with ONLY a valid JSON object.",
+                                }
+                            )
+                        else:
+                            step.success = False
+                            step.error = f"Failed to parse LLM response after 3 attempts: {exc}"
 
             step.action = action
             result.steps.append(step)
 
-            # Accumulate tokens
+            # Accumulate tokens and cost (priced by the model actually used this step)
             result.total_tokens.input_tokens += step.token_usage.input_tokens
             result.total_tokens.output_tokens += step.token_usage.output_tokens
+            result.total_tokens.cache_read_input_tokens += step.token_usage.cache_read_input_tokens
+            result.total_tokens.cache_creation_input_tokens += step.token_usage.cache_creation_input_tokens
+            result.estimated_cost += llm.estimate_cost(
+                step_model,
+                input_tokens=step.token_usage.input_tokens,
+                output_tokens=step.token_usage.output_tokens,
+                cache_read_input_tokens=step.token_usage.cache_read_input_tokens,
+                cache_creation_input_tokens=step.token_usage.cache_creation_input_tokens,
+            )
 
             if action is None:
                 logger.error("Could not parse action, continuing to next step")
@@ -439,15 +472,10 @@ def run_agent(
         if recording_proc:
             sim.stop_recording(recording_proc)
 
-    # Calculate estimated cost
-    result.estimated_cost = (
-        result.total_tokens.input_tokens * llm.cost_per_input_token
-        + result.total_tokens.output_tokens * llm.cost_per_output_token
-    )
-
     logger.info(
         f"Run complete: status={result.status}, steps={len(result.steps)}, "
-        f"tokens={result.total_tokens.input_tokens}+{result.total_tokens.output_tokens}, "
+        f"tokens={result.total_tokens.input_tokens}+{result.total_tokens.output_tokens} "
+        f"(cache_read={result.total_tokens.cache_read_input_tokens}), "
         f"cost≈${result.estimated_cost:.4f}"
     )
 

@@ -11,7 +11,6 @@ from iostestagents.agent.ui_parser import (
     resolve_element,
 )
 
-
 SAMPLE_UI = """\
 Application 'Settings' {{0, 0}, {393, 852}}
   Window  {{0, 0}, {393, 852}}
@@ -164,17 +163,33 @@ class TestCheckGoalReached:
 
 class TestUIElementTappable:
     def test_button_is_tappable(self):
-        el = UIElement(index=1, element_type="Button", label="OK", x=0, y=0, width=80, height=44, center_x=40, center_y=22)
+        el = UIElement(
+            index=1, element_type="Button", label="OK", x=0, y=0, width=80, height=44, center_x=40, center_y=22
+        )
         assert el.tappable
 
     def test_cell_is_tappable(self):
-        el = UIElement(index=1, element_type="Cell", label="Item", x=0, y=0, width=393, height=44, center_x=196, center_y=22)
+        el = UIElement(
+            index=1, element_type="Cell", label="Item", x=0, y=0, width=393, height=44, center_x=196, center_y=22
+        )
         assert el.tappable
 
     def test_window_not_tappable(self):
-        el = UIElement(index=1, element_type="Window", label="", x=0, y=0, width=393, height=852, center_x=196, center_y=426)
+        el = UIElement(
+            index=1, element_type="Window", label="", x=0, y=0, width=393, height=852, center_x=196, center_y=426
+        )
         assert not el.tappable
 
     def test_navigationbar_not_tappable(self):
-        el = UIElement(index=1, element_type="NavigationBar", label="Settings", x=0, y=44, width=393, height=52, center_x=196, center_y=70)
+        el = UIElement(
+            index=1,
+            element_type="NavigationBar",
+            label="Settings",
+            x=0,
+            y=44,
+            width=393,
+            height=52,
+            center_x=196,
+            center_y=70,
+        )
         assert not el.tappable

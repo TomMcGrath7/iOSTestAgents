@@ -4,21 +4,20 @@ from __future__ import annotations
 
 import json
 import threading
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from iostestagents.agent.models import OrchestratorResult, RunResult, StepRecord, TokenUsage
+from iostestagents.agent.models import RunResult, StepRecord, TokenUsage
 from iostestagents.device.simulator import DeviceInfo
-from iostestagents.orchestrator.coordinator import Orchestrator, OrchestratorError
+from iostestagents.orchestrator.coordinator import Orchestrator
 from iostestagents.orchestrator.scenario import Scenario, ScenarioStep, load_scenario
 from iostestagents.orchestrator.sync import AbortEvent, VariableStore
-
 
 # ---------------------------------------------------------------------------
 # VariableStore tests
 # ---------------------------------------------------------------------------
+
 
 class TestVariableStore:
     def test_set_and_get(self):
@@ -62,6 +61,7 @@ class TestVariableStore:
 # AbortEvent tests
 # ---------------------------------------------------------------------------
 
+
 class TestAbortEvent:
     def test_not_aborted_initially(self):
         ev = AbortEvent()
@@ -90,6 +90,7 @@ class TestAbortEvent:
 # ---------------------------------------------------------------------------
 # ScenarioStep tests
 # ---------------------------------------------------------------------------
+
 
 class TestScenarioStep:
     def test_build_goal_action_only(self):
@@ -141,9 +142,7 @@ class TestScenarioStep:
         assert step.verify == "Game ready"
 
     def test_all_players_shorthand_with_on_failure(self):
-        step = ScenarioStep.model_validate(
-            {"all_players": {"verify": "Done", "on_failure": "continue"}}
-        )
+        step = ScenarioStep.model_validate({"all_players": {"verify": "Done", "on_failure": "continue"}})
         assert step.player == "all"
         assert step.on_failure == "continue"
 
@@ -151,6 +150,7 @@ class TestScenarioStep:
 # ---------------------------------------------------------------------------
 # load_scenario tests
 # ---------------------------------------------------------------------------
+
 
 class TestLoadScenario:
     def test_load_valid_yaml(self, tmp_path):
@@ -216,6 +216,7 @@ steps:
 # Orchestrator tests (all mocked — no real devices or XcodeBuildMCP)
 # ---------------------------------------------------------------------------
 
+
 def _make_scenario(players=1, steps=None, on_failure="fail_fast") -> Scenario:
     if steps is None:
         steps = [ScenarioStep(player=1, action="Do something", verify="Done")]
@@ -233,10 +234,7 @@ def _make_scenario(players=1, steps=None, on_failure="fail_fast") -> Scenario:
 
 def _make_mock_sim(n_devices=1) -> MagicMock:
     sim = MagicMock()
-    devices = [
-        DeviceInfo(f"iPhone 16", f"udid-{i}", "Booted", "iOS-18")
-        for i in range(1, n_devices + 1)
-    ]
+    devices = [DeviceInfo("iPhone 16", f"udid-{i}", "Booted", "iOS-18") for i in range(1, n_devices + 1)]
     sim.list_devices_by_name.return_value = devices
     sim.boot.return_value = None
     sim.install_app.return_value = None
@@ -351,7 +349,7 @@ class TestOrchestratorFailFast:
         with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=failure_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
-            result = orch.run()
+            orch.run()
 
         # Both steps should have been called
         assert mock_run.call_count == 2
@@ -370,6 +368,7 @@ class TestOrchestratorVariableCapture:
 
         mock_llm = MagicMock()
         from iostestagents.llm.base import LLMResponse
+
         mock_llm.chat.return_value = LLMResponse(text="ABCD1234", input_tokens=10, output_tokens=5)
         mock_llm.default_model = "test-model"
         mock_llm.cost_per_input_token = 0.0
@@ -433,7 +432,7 @@ class TestOrchestratorParallelStep:
         with patch("iostestagents.orchestrator.coordinator.run_agent", return_value=mock_result) as mock_run:
             orch = Orchestrator(sc, output_dir=tmp_path, backend_cls=lambda u, b: mock_backend)
             orch._sim = mock_sim
-            result = orch.run()
+            orch.run()
 
         assert mock_run.call_count == 3
 
@@ -511,21 +510,24 @@ class TestOrchestratorCleanup:
 # SimulatorManager.list_devices_by_name tests
 # ---------------------------------------------------------------------------
 
+
 class TestSimulatorManagerListByName:
     def test_returns_matching_devices(self):
         from iostestagents.device.simulator import SimulatorManager
 
-        raw_output = json.dumps({
-            "devices": {
-                "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
-                    {"name": "iPhone 16", "udid": "aaa", "state": "Booted", "isAvailable": True},
-                    {"name": "iPhone 15", "udid": "bbb", "state": "Shutdown", "isAvailable": True},
-                ],
-                "com.apple.CoreSimulator.SimRuntime.iOS-17-0": [
-                    {"name": "iPhone 16", "udid": "ccc", "state": "Shutdown", "isAvailable": True},
-                ],
+        raw_output = json.dumps(
+            {
+                "devices": {
+                    "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
+                        {"name": "iPhone 16", "udid": "aaa", "state": "Booted", "isAvailable": True},
+                        {"name": "iPhone 15", "udid": "bbb", "state": "Shutdown", "isAvailable": True},
+                    ],
+                    "com.apple.CoreSimulator.SimRuntime.iOS-17-0": [
+                        {"name": "iPhone 16", "udid": "ccc", "state": "Shutdown", "isAvailable": True},
+                    ],
+                }
             }
-        })
+        )
 
         sim = SimulatorManager()
         sim._run = MagicMock(return_value=raw_output)
@@ -539,13 +541,15 @@ class TestSimulatorManagerListByName:
     def test_returns_empty_for_no_match(self):
         from iostestagents.device.simulator import SimulatorManager
 
-        raw_output = json.dumps({
-            "devices": {
-                "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
-                    {"name": "iPhone 15", "udid": "aaa", "state": "Booted", "isAvailable": True},
-                ],
+        raw_output = json.dumps(
+            {
+                "devices": {
+                    "com.apple.CoreSimulator.SimRuntime.iOS-18-0": [
+                        {"name": "iPhone 15", "udid": "aaa", "state": "Booted", "isAvailable": True},
+                    ],
+                }
             }
-        })
+        )
 
         sim = SimulatorManager()
         sim._run = MagicMock(return_value=raw_output)

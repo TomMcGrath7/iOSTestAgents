@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 from iostestagents.llm.base import LLMProvider, LLMResponse
 from iostestagents.util.logging import get_logger
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 _OLLAMA_BASE = "http://localhost:11434"
 
 
-def _translate_to_ollama_content(messages_content: list[dict]) -> str | list[dict]:
+def _translate_to_ollama_content(messages_content: list[dict]) -> str | dict:
     """Translate content blocks to Ollama native format.
 
     For text-only messages, return a plain string.
@@ -47,13 +47,15 @@ class OllamaProvider(LLMProvider):
     def default_model(self) -> str:
         return "qwen3:8b"
 
-    @property
-    def cost_per_input_token(self) -> float:
-        return 0.0
-
-    @property
-    def cost_per_output_token(self) -> float:
-        return 0.0
+    def estimate_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
+    ) -> float:
+        return 0.0  # local models are free
 
     def chat(
         self,

@@ -29,19 +29,32 @@ class UIElement:
     def tappable(self) -> bool:
         """Elements likely to respond to taps."""
         return self.element_type in {
-            "Button", "Cell", "Link", "TextField", "SecureTextField",
-            "Switch", "Toggle", "Slider", "SearchField", "StaticText",
-            "Icon", "Image", "Tab", "SegmentedControl", "PopUpButton",
-            "MenuButton", "Key",
+            "Button",
+            "Cell",
+            "Link",
+            "TextField",
+            "SecureTextField",
+            "Switch",
+            "Toggle",
+            "Slider",
+            "SearchField",
+            "StaticText",
+            "Icon",
+            "Image",
+            "Tab",
+            "SegmentedControl",
+            "PopUpButton",
+            "MenuButton",
+            "Key",
         }
 
 
 # Pattern: TypeName 'label' or id='label' {{x, y}, {w, h}} traits
 _ELEMENT_RE = re.compile(
-    r"^\s*(\w+)\s+"                         # element type
-    r"(?:(?:id=)?'([^']*)')?\s*"            # optional label (with or without id= prefix)
+    r"^\s*(\w+)\s+"  # element type
+    r"(?:(?:id=)?'([^']*)')?\s*"  # optional label (with or without id= prefix)
     r"\{\{(\d+),\s*(\d+)\},\s*\{(\d+),\s*(\d+)\}\}"  # frame {{x,y},{w,h}}
-    r"(.*)?$"                               # optional trailing traits
+    r"(.*)?$"  # optional trailing traits
 )
 
 
@@ -90,7 +103,10 @@ def _parse_text_ui(ui_state: str) -> list[UIElement]:
             index=idx,
             element_type=el_type,
             label=label,
-            x=x, y=y, width=w, height=h,
+            x=x,
+            y=y,
+            width=w,
+            height=h,
             center_x=x + w // 2,
             center_y=y + h // 2,
             traits=traits,
@@ -107,11 +123,11 @@ def _parse_json_ui(ui_state: str) -> list[UIElement]:
     if "```json" in text:
         start = text.index("```json") + len("```json")
         end = text.index("```", start) if "```" in text[start:] else len(text)
-        text = text[start:start + end - start].strip()
+        text = text[start : start + end - start].strip()
     elif "```" in text:
         start = text.index("```") + len("```")
         end = text.index("```", start) if "```" in text[start:] else len(text)
-        text = text[start:start + end - start].strip()
+        text = text[start : start + end - start].strip()
 
     try:
         data = json.loads(text)
@@ -147,7 +163,10 @@ def _parse_json_ui(ui_state: str) -> list[UIElement]:
                 index=idx_counter[0],
                 element_type=el_type,
                 label=label,
-                x=x, y=y, width=w, height=h,
+                x=x,
+                y=y,
+                width=w,
+                height=h,
                 center_x=x + w // 2,
                 center_y=y + h // 2,
             )
@@ -178,9 +197,12 @@ def _is_child_element(el: UIElement, elements: list[UIElement]) -> bool:
         if other.element_type not in ("Button", "Cell"):
             continue
         # Check if el is fully contained within other's frame
-        if (other.x <= el.x and other.y <= el.y
-                and other.x + other.width >= el.x + el.width
-                and other.y + other.height >= el.y + el.height):
+        if (
+            other.x <= el.x
+            and other.y <= el.y
+            and other.x + other.width >= el.x + el.width
+            and other.y + other.height >= el.y + el.height
+        ):
             return True
     return False
 
@@ -204,11 +226,33 @@ def build_element_list(
     action_buttons: list[UIElement] = []  # Continue, Next, Submit, etc.
     regular: list[UIElement] = []
 
-    action_keywords = {"continue", "next", "submit", "done", "save", "confirm",
-                       "sign up", "sign in", "log in", "create", "send", "ok",
-                       "accept", "agree", "skip", "get started", "proceed",
-                       "report", "bug", "feedback", "feature", "request",
-                       "help", "support", "contact"}
+    action_keywords = {
+        "continue",
+        "next",
+        "submit",
+        "done",
+        "save",
+        "confirm",
+        "sign up",
+        "sign in",
+        "log in",
+        "create",
+        "send",
+        "ok",
+        "accept",
+        "agree",
+        "skip",
+        "get started",
+        "proceed",
+        "report",
+        "bug",
+        "feedback",
+        "feature",
+        "request",
+        "help",
+        "support",
+        "contact",
+    }
 
     for el in elements:
         if tappable_only and not el.tappable:
@@ -280,14 +324,26 @@ def check_goal_reached(goal: str, screen_title: str, elements: list[UIElement]) 
     screen_lower = screen_title.lower()
 
     # Skip auto-detection for multi-step or complex goals — let the LLM decide
-    multi_step_indicators = [" and ", ", ", "then ", "create", "send", "submit", "fill", "enter", "sign", "log in", "register"]
+    multi_step_indicators = [
+        " and ",
+        ", ",
+        "then ",
+        "create",
+        "send",
+        "submit",
+        "fill",
+        "enter",
+        "sign",
+        "log in",
+        "register",
+    ]
     if any(indicator in goal_lower for indicator in multi_step_indicators):
         return False
 
     # Extract destination from "Navigate to X > Y" or "Go to X > Y" patterns
     for prefix in ("navigate to ", "go to ", "open "):
         if goal_lower.startswith(prefix):
-            destination = goal_lower[len(prefix):]
+            destination = goal_lower[len(prefix) :]
             # For "General > About", the final destination is "About"
             if ">" in destination:
                 final = destination.split(">")[-1].strip()

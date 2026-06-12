@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import subprocess
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 from iostestagents.device.base import DeviceError
@@ -70,11 +70,17 @@ class BridgeDevice:
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.3) -> None:
         logger.debug(f"Swipe ({x1},{y1}) -> ({x2},{y2})")
-        self._request("POST", "/swipe", {
-            "fromX": x1, "fromY": y1,
-            "toX": x2, "toY": y2,
-            "duration": duration,
-        })
+        self._request(
+            "POST",
+            "/swipe",
+            {
+                "fromX": x1,
+                "fromY": y1,
+                "toX": x2,
+                "toY": y2,
+                "duration": duration,
+            },
+        )
 
     def type_text(self, text: str) -> None:
         logger.debug(f"Type text: {text!r}")
@@ -105,18 +111,20 @@ class BridgeDevice:
         self._port_file.write_text(str(self.port))
 
         cmd = [
-            "xcodebuild", "test",
-            "-project", project,
-            "-scheme", "TestBridge",
-            "-destination", f"platform=iOS Simulator,id={self.udid}",
+            "xcodebuild",
+            "test",
+            "-project",
+            project,
+            "-scheme",
+            "TestBridge",
+            "-destination",
+            f"platform=iOS Simulator,id={self.udid}",
             "-only-testing:TestBridgeUITests/TestBridgeUITests/testBridgeServer",
         ]
         logger.info(f"Starting TestBridge (port {self.port}): {' '.join(cmd)}")
 
         with open(log_file, "w") as lf:
-            self._process = subprocess.Popen(
-                cmd, stdout=lf, stderr=subprocess.STDOUT
-            )
+            self._process = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT)
 
         # Poll /health until ready
         start_time = time.time()
@@ -124,8 +132,7 @@ class BridgeDevice:
             while time.time() - start_time < timeout:
                 if self._process.poll() is not None:
                     raise BridgeError(
-                        f"xcodebuild exited early (rc={self._process.returncode}). "
-                        f"Check {log_file} for details."
+                        f"xcodebuild exited early (rc={self._process.returncode}). Check {log_file} for details."
                     )
                 try:
                     result = self._request("GET", "/health")

@@ -11,9 +11,7 @@ import pytest
 @pytest.fixture
 def mock_subprocess_run():
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="", stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
         yield mock_run
 
 
@@ -65,6 +63,8 @@ def mock_llm_provider():
         input_tokens=500,
         output_tokens=50,
     )
-    with patch("iostestagents.agent.loop.get_provider", return_value=provider), \
-         patch("iostestagents.agent.loop.BridgeDevice"):
+    with (
+        patch("iostestagents.agent.loop.get_provider", return_value=provider),
+        patch("iostestagents.agent.loop.BridgeDevice"),
+    ):
         yield provider

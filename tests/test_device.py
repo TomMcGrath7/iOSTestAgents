@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import urllib.error
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from iostestagents.device.simulator import SimulatorManager, SimulatorError, DeviceInfo
-from iostestagents.device.idb import IDBDevice, IDBError
 from iostestagents.device.bridge import BridgeDevice, BridgeError
+from iostestagents.device.idb import IDBDevice, IDBError
+from iostestagents.device.simulator import SimulatorError, SimulatorManager
 
 
 class TestSimulatorManager:
@@ -37,16 +36,12 @@ class TestSimulatorManager:
 
     def test_boot_already_booted(self):
         sim = SimulatorManager()
-        with patch.object(
-            sim, "_run", side_effect=SimulatorError("current state: Booted")
-        ):
+        with patch.object(sim, "_run", side_effect=SimulatorError("current state: Booted")):
             sim.boot("test-udid")  # Should not raise
 
     def test_boot_failure(self):
         sim = SimulatorManager()
-        with patch.object(
-            sim, "_run", side_effect=SimulatorError("some other error")
-        ):
+        with patch.object(sim, "_run", side_effect=SimulatorError("some other error")):
             with pytest.raises(SimulatorError):
                 sim.boot("test-udid")
 
@@ -76,10 +71,12 @@ class TestSimulatorManager:
 
     def test_reset_app_with_app_path(self):
         sim = SimulatorManager()
-        with patch.object(sim, "terminate_app") as term, \
-             patch.object(sim, "uninstall_app") as uninst, \
-             patch.object(sim, "install_app") as inst, \
-             patch.object(sim, "launch_app") as launch:
+        with (
+            patch.object(sim, "terminate_app") as term,
+            patch.object(sim, "uninstall_app") as uninst,
+            patch.object(sim, "install_app") as inst,
+            patch.object(sim, "launch_app") as launch,
+        ):
             sim.reset_app("udid", "com.test.app", "/path/to/app")
             term.assert_called_once_with("udid", "com.test.app")
             uninst.assert_called_once_with("udid", "com.test.app")
@@ -88,10 +85,12 @@ class TestSimulatorManager:
 
     def test_reset_app_without_app_path(self):
         sim = SimulatorManager()
-        with patch.object(sim, "terminate_app"), \
-             patch.object(sim, "uninstall_app"), \
-             patch.object(sim, "install_app") as inst, \
-             patch.object(sim, "launch_app"):
+        with (
+            patch.object(sim, "terminate_app"),
+            patch.object(sim, "uninstall_app"),
+            patch.object(sim, "install_app") as inst,
+            patch.object(sim, "launch_app"),
+        ):
             sim.reset_app("udid", "com.test.app")
             inst.assert_not_called()
 
@@ -103,11 +102,7 @@ class TestSimulatorManager:
 
     def test_get_screen_size_iphone16(self):
         sim = SimulatorManager()
-        enumerate_output = (
-            "Display 0:\n"
-            "  Size 1170 x 2532\n"
-            "  Scale 3.00\n"
-        )
+        enumerate_output = "Display 0:\n  Size 1170 x 2532\n  Scale 3.00\n"
         with patch.object(sim, "_run", return_value=enumerate_output):
             w, h = sim.get_screen_size("udid")
         assert w == 390
@@ -115,11 +110,7 @@ class TestSimulatorManager:
 
     def test_get_screen_size_ipad(self):
         sim = SimulatorManager()
-        enumerate_output = (
-            "Display 0:\n"
-            "  Size 1640 x 2360\n"
-            "  Scale 2.00\n"
-        )
+        enumerate_output = "Display 0:\n  Size 1640 x 2360\n  Scale 2.00\n"
         with patch.object(sim, "_run", return_value=enumerate_output):
             w, h = sim.get_screen_size("udid")
         assert w == 820
@@ -162,9 +153,7 @@ class TestIDBDevice:
         idb = IDBDevice("test-udid")
         with patch.object(idb, "_run") as mock_run:
             idb.swipe(0, 0, 100, 100, 0.3)
-            mock_run.assert_called_once_with(
-                ["ui", "swipe", "0", "0", "100", "100", "0.3"]
-            )
+            mock_run.assert_called_once_with(["ui", "swipe", "0", "0", "100", "100", "0.3"])
 
     def test_type_text_command(self):
         idb = IDBDevice("test-udid")
@@ -187,15 +176,19 @@ class TestIDBDevice:
 
     def test_describe_ui_fallback_on_empty(self):
         idb = IDBDevice("test-udid")
-        with patch.object(idb, "_run", return_value=""), \
-             patch.object(idb, "_run_simctl_fallback", return_value="fallback tree"):
+        with (
+            patch.object(idb, "_run", return_value=""),
+            patch.object(idb, "_run_simctl_fallback", return_value="fallback tree"),
+        ):
             result = idb.describe_ui()
             assert result == "fallback tree"
 
     def test_describe_ui_fallback_on_error(self):
         idb = IDBDevice("test-udid")
-        with patch.object(idb, "_run", side_effect=IDBError("fail")), \
-             patch.object(idb, "_run_simctl_fallback", return_value="fallback"):
+        with (
+            patch.object(idb, "_run", side_effect=IDBError("fail")),
+            patch.object(idb, "_run_simctl_fallback", return_value="fallback"),
+        ):
             result = idb.describe_ui()
             assert result == "fallback"
 
@@ -234,11 +227,17 @@ class TestBridgeDevice:
         bridge = BridgeDevice("test-udid")
         with patch.object(bridge, "_request") as mock_req:
             bridge.swipe(0, 100, 200, 300, 0.5)
-            mock_req.assert_called_once_with("POST", "/swipe", {
-                "fromX": 0, "fromY": 100,
-                "toX": 200, "toY": 300,
-                "duration": 0.5,
-            })
+            mock_req.assert_called_once_with(
+                "POST",
+                "/swipe",
+                {
+                    "fromX": 0,
+                    "fromY": 100,
+                    "toX": 200,
+                    "toY": 300,
+                    "duration": 0.5,
+                },
+            )
 
     def test_type_text_sends_http_post(self):
         bridge = BridgeDevice("test-udid")
@@ -269,8 +268,7 @@ class TestBridgeDevice:
     def test_request_raises_bridge_error_on_http_error(self):
         bridge = BridgeDevice("test-udid")
         error = urllib.error.HTTPError(
-            "http://localhost:8615/tap", 400, "Bad Request", {},
-            MagicMock(read=lambda: b'{"error": "Missing x/y"}')
+            "http://localhost:8615/tap", 400, "Bad Request", {}, MagicMock(read=lambda: b'{"error": "Missing x/y"}')
         )
         with patch("urllib.request.urlopen", side_effect=error):
             with pytest.raises(BridgeError, match="Missing x/y"):
@@ -285,10 +283,12 @@ class TestBridgeDevice:
     @patch("iostestagents.device.bridge.time.sleep")
     def test_start_polls_health(self, mock_sleep, tmp_path):
         bridge = BridgeDevice("test-udid")
-        with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
-             patch("subprocess.Popen") as mock_popen, \
-             patch.object(bridge, "is_running", return_value=False), \
-             patch.object(bridge, "_request") as mock_req:
+        with (
+            patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"),
+            patch("subprocess.Popen") as mock_popen,
+            patch.object(bridge, "is_running", return_value=False),
+            patch.object(bridge, "_request") as mock_req,
+        ):
             # Create the fake project path
             (tmp_path / "TestBridge.xcodeproj").mkdir()
             mock_proc = MagicMock()
@@ -356,10 +356,12 @@ class TestBridgeDevice:
         bridge = BridgeDevice("test-udid-1234", port=9000)
         port_file = Path("/tmp/testbridge_test-udid-1234.port")
         try:
-            with patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"), \
-                 patch("subprocess.Popen") as mock_popen, \
-                 patch.object(bridge, "is_running", return_value=False), \
-                 patch.object(bridge, "_request", return_value={"status": "ok"}):
+            with (
+                patch("iostestagents.device.bridge.TESTBRIDGE_PROJECT", tmp_path / "TestBridge.xcodeproj"),
+                patch("subprocess.Popen") as mock_popen,
+                patch.object(bridge, "is_running", return_value=False),
+                patch.object(bridge, "_request", return_value={"status": "ok"}),
+            ):
                 (tmp_path / "TestBridge.xcodeproj").mkdir()
                 mock_proc = MagicMock()
                 mock_proc.poll.return_value = None

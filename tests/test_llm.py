@@ -8,10 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from iostestagents.llm.base import LLMProvider, LLMResponse
-from iostestagents.llm.anthropic import AnthropicProvider
-from iostestagents.llm.openai import OpenAIProvider, _translate_content
+from iostestagents.agent.models import ActionType, AgentAction
+from iostestagents.llm.anthropic import AnthropicProvider, get_model_pricing
+from iostestagents.llm.base import LLMResponse, StructuredLLMResponse
 from iostestagents.llm.ollama import OllamaProvider, _translate_to_ollama_content
+from iostestagents.llm.openai import OpenAIProvider, _translate_content
 from iostestagents.llm.registry import get_provider
 
 
@@ -21,6 +22,14 @@ class TestLLMResponse:
         assert r.text == "hello"
         assert r.input_tokens == 10
         assert r.output_tokens == 5
+        assert r.cache_read_input_tokens == 0
+        assert r.cache_creation_input_tokens == 0
+
+    def test_structured_fields(self):
+        action = AgentAction(action=ActionType.DONE, message="ok")
+        r = StructuredLLMResponse(parsed=action, input_tokens=10, output_tokens=5)
+        assert r.parsed is action
+        assert r.cache_read_input_tokens == 0
 
 
 class TestTranslateContent:
@@ -90,35 +99,173 @@ class TestProviderProperties:
     def test_anthropic_defaults(self, mock_cls):
         p = AnthropicProvider()
         assert p.name == "anthropic"
-        assert "claude" in p.default_model
-        assert p.cost_per_input_token > 0
+        assert p.default_model == "claude-opus-4-8"
+        assert p.supports_structured_output is True
 
     @patch("iostestagents.llm.openai.openai.OpenAI")
     def test_openai_defaults(self, mock_cls):
         p = OpenAIProvider()
         assert p.name == "openai"
-        assert "gpt" in p.default_model
-        assert p.cost_per_input_token > 0
+        assert p.default_model == "gpt-5.4"
+        assert p.supports_structured_output is True
 
     def test_ollama_defaults(self):
         p = OllamaProvider()
         assert p.name == "ollama"
         assert p.default_model == "qwen3:8b"
-        assert p.cost_per_input_token == 0.0
-        assert p.cost_per_output_token == 0.0
+        assert p.supports_structured_output is False
+        assert p.estimate_cost("qwen3:8b", 1000, 1000) == 0.0
+
+    def test_ollama_structured_not_implemented(self):
+        p = OllamaProvider()
+        with pytest.raises(NotImplementedError):
+            p.chat_structured("qwen3:8b", "sys", [], AgentAction, 1024)
+
+
+class TestAnthropicPricing:
+    def test_known_model_pricing(self):
+        assert get_model_pricing("claude-opus-4-8") == (5.00, 25.00)
+        assert get_model_pricing("claude-sonnet-4-6") == (3.00, 15.00)
+        assert get_model_pricing("claude-haiku-4-5") == (1.00, 5.00)
+
+    def test_date_suffixed_model_matches_base(self):
+        assert get_model_pricing("claude-haiku-4-5-20251001") == (1.00, 5.00)
+
+    def test_unknown_model_falls_back_to_opus_with_warning(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            pricing = get_model_pricing("claude-future-9")
+        assert pricing == (5.00, 25.00)
+        assert any("No pricing" in r.message for r in caplog.records)
+
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_estimate_cost_per_model(self, mock_cls):
+        p = AnthropicProvider()
+        # 1M input + 1M output at opus rates
+        assert p.estimate_cost("claude-opus-4-8", 1_000_000, 1_000_000) == pytest.approx(30.0)
+        # haiku is the cheap option
+        assert p.estimate_cost("claude-haiku-4-5", 1_000_000, 1_000_000) == pytest.approx(6.0)
+
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_estimate_cost_cache_read_at_tenth_input_rate(self, mock_cls):
+        p = AnthropicProvider()
+        # 1M cache-read tokens on sonnet = $3.00 * 0.1 = $0.30
+        cost = p.estimate_cost("claude-sonnet-4-6", 0, 0, cache_read_input_tokens=1_000_000)
+        assert cost == pytest.approx(0.30)
+
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_estimate_cost_cache_write_at_1_25x_input_rate(self, mock_cls):
+        p = AnthropicProvider()
+        cost = p.estimate_cost("claude-opus-4-8", 0, 0, cache_creation_input_tokens=1_000_000)
+        assert cost == pytest.approx(6.25)
+
+
+def _mock_anthropic_usage(input_tokens=100, output_tokens=20, cache_read=0, cache_creation=0):
+    usage = MagicMock()
+    usage.input_tokens = input_tokens
+    usage.output_tokens = output_tokens
+    usage.cache_read_input_tokens = cache_read
+    usage.cache_creation_input_tokens = cache_creation
+    return usage
+
+
+class TestAnthropicChat:
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_chat_sends_system_with_cache_control(self, mock_cls):
+        client = mock_cls.return_value
+        response = MagicMock()
+        response.content = [MagicMock(type="text", text='{"action": "done"}')]
+        response.usage = _mock_anthropic_usage(cache_read=500)
+        client.messages.create.return_value = response
+
+        p = AnthropicProvider()
+        result = p.chat("claude-opus-4-8", "you are a tester", [{"type": "text", "text": "hi"}], 1024)
+
+        kwargs = client.messages.create.call_args.kwargs
+        assert kwargs["system"] == [
+            {
+                "type": "text",
+                "text": "you are a tester",
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
+        assert result.text == '{"action": "done"}'
+        assert result.cache_read_input_tokens == 500
+
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_chat_structured_returns_parsed_action(self, mock_cls):
+        client = mock_cls.return_value
+        action = AgentAction(action=ActionType.TAP, element=3, reasoning="tap it")
+        response = MagicMock()
+        response.parsed_output = action
+        response.usage = _mock_anthropic_usage(input_tokens=200, output_tokens=30, cache_read=150)
+        client.messages.parse.return_value = response
+
+        p = AnthropicProvider()
+        result = p.chat_structured("claude-opus-4-8", "system", [{"type": "text", "text": "next?"}], AgentAction, 1024)
+
+        kwargs = client.messages.parse.call_args.kwargs
+        assert kwargs["output_format"] is AgentAction
+        assert kwargs["model"] == "claude-opus-4-8"
+        assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+        assert result.parsed is action
+        assert result.parsed.element == 3
+        assert result.input_tokens == 200
+        assert result.cache_read_input_tokens == 150
+
+    @patch("iostestagents.llm.anthropic.anthropic.Anthropic")
+    def test_chat_handles_missing_cache_usage(self, mock_cls):
+        """Older SDK usage objects without cache fields default to 0."""
+        client = mock_cls.return_value
+        usage = MagicMock(spec=["input_tokens", "output_tokens"])
+        usage.input_tokens = 10
+        usage.output_tokens = 5
+        response = MagicMock()
+        response.content = [MagicMock(type="text", text="ok")]
+        response.usage = usage
+        client.messages.create.return_value = response
+
+        p = AnthropicProvider()
+        result = p.chat("claude-opus-4-8", "sys", [{"type": "text", "text": "hi"}], 1024)
+        assert result.cache_read_input_tokens == 0
+        assert result.cache_creation_input_tokens == 0
+
+
+class TestOpenAIStructured:
+    @patch("iostestagents.llm.openai.openai.OpenAI")
+    def test_chat_structured_returns_parsed_action(self, mock_cls):
+        client = mock_cls.return_value
+        action = AgentAction(action=ActionType.DONE, message="finished")
+        completion = MagicMock()
+        completion.choices = [MagicMock(message=MagicMock(parsed=action))]
+        completion.usage = MagicMock(prompt_tokens=120, completion_tokens=25)
+        client.beta.chat.completions.parse.return_value = completion
+
+        p = OpenAIProvider()
+        result = p.chat_structured("gpt-5.5", "system", [{"type": "text", "text": "next?"}], AgentAction, 1024)
+
+        kwargs = client.beta.chat.completions.parse.call_args.kwargs
+        assert kwargs["response_format"] is AgentAction
+        assert kwargs["max_completion_tokens"] == 1024
+        assert result.parsed is action
+        assert result.input_tokens == 120
+        assert result.output_tokens == 25
 
 
 class TestOllamaChat:
     def test_chat_sends_correct_request(self):
         """Ollama chat sends native API request with think=False."""
         p = OllamaProvider()
-        mock_response = json.dumps({
-            "message": {"role": "assistant", "content": '{"action": "done", "reasoning": "ok"}'},
-            "done": True,
-            "done_reason": "stop",
-            "eval_count": 20,
-            "prompt_eval_count": 100,
-        }).encode()
+        mock_response = json.dumps(
+            {
+                "message": {"role": "assistant", "content": '{"action": "done", "reasoning": "ok"}'},
+                "done": True,
+                "done_reason": "stop",
+                "eval_count": 20,
+                "prompt_eval_count": 100,
+            }
+        ).encode()
 
         mock_resp = MagicMock()
         mock_resp.read.return_value = mock_response
@@ -141,9 +288,11 @@ class TestOllamaChat:
         assert body["model"] == "qwen3:8b"
 
     def test_chat_raises_on_connection_error(self):
+        import urllib.error
+
         p = OllamaProvider()
-        with patch("urllib.request.urlopen", side_effect=Exception("refused")):
-            with pytest.raises(Exception):
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
+            with pytest.raises(RuntimeError, match="not reachable"):
                 p.chat("qwen3:8b", "sys", [{"type": "text", "text": "t"}], 1024)
 
 

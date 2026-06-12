@@ -33,16 +33,12 @@ class SimulatorManager:
         cmd = ["xcrun", "simctl", *args]
         logger.debug(f"Running: {' '.join(cmd)}")
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             raise SimulatorError(f"Command timed out: {' '.join(cmd)}") from exc
 
         if result.returncode != 0:
-            raise SimulatorError(
-                f"simctl failed (rc={result.returncode}): {result.stderr.strip()}"
-            )
+            raise SimulatorError(f"simctl failed (rc={result.returncode}): {result.stderr.strip()}")
         return result.stdout
 
     def list_devices(self) -> list[DeviceInfo]:
@@ -67,9 +63,7 @@ class SimulatorManager:
         matches = [d for d in devices if d.name == name]
         if not matches:
             available = sorted({d.name for d in devices})
-            raise SimulatorError(
-                f"No device named '{name}'. Available: {', '.join(available)}"
-            )
+            raise SimulatorError(f"No device named '{name}'. Available: {', '.join(available)}")
         # Prefer latest runtime (runtime strings sort lexicographically)
         matches.sort(key=lambda d: d.runtime, reverse=True)
         return matches[0]
@@ -91,8 +85,7 @@ class SimulatorManager:
         raw = self._run(["list", "runtimes", "available", "-j"])
         data = json.loads(raw)
         ios_runtimes = [
-            r for r in data.get("runtimes", [])
-            if r.get("isAvailable", False) and "iOS" in r.get("name", "")
+            r for r in data.get("runtimes", []) if r.get("isAvailable", False) and "iOS" in r.get("name", "")
         ]
         if not ios_runtimes:
             raise SimulatorError("No available iOS runtimes found")
@@ -102,10 +95,7 @@ class SimulatorManager:
         # Find device type matching name
         raw = self._run(["list", "devicetypes", "-j"])
         data = json.loads(raw)
-        device_types = [
-            dt for dt in data.get("devicetypes", [])
-            if dt.get("name") == name
-        ]
+        device_types = [dt for dt in data.get("devicetypes", []) if dt.get("name") == name]
         if not device_types:
             raise SimulatorError(f"No device type found for '{name}'")
         device_type_id = device_types[0]["identifier"]
@@ -163,9 +153,7 @@ class SimulatorManager:
         except SimulatorError:
             logger.debug("App may not be installed, ignoring uninstall error")
 
-    def reset_app(
-        self, udid: str, bundle_id: str, app_path: str | None = None
-    ) -> None:
+    def reset_app(self, udid: str, bundle_id: str, app_path: str | None = None) -> None:
         """Terminate → uninstall → (optionally reinstall) → launch. Ensures clean state."""
         logger.info(f"Resetting app {bundle_id} on {udid}")
         self.terminate_app(udid, bundle_id)

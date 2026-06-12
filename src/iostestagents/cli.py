@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
-import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -32,17 +29,23 @@ def run(
     app_bundle: str = typer.Option(..., "--app", "-a", help="App bundle identifier"),
     goal: str = typer.Option(..., "--goal", "-g", help="Natural language test goal"),
     max_steps: int = typer.Option(20, "--max-steps", help="Maximum agent steps"),
-    model: Optional[str] = typer.Option(None, "--model", help="LLM model to use (default per provider)"),
-    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider: anthropic, openai, ollama (auto-detect if omitted)"),
+    model: str | None = typer.Option(None, "--model", help="LLM model to use (default per provider)"),
+    provider: str | None = typer.Option(
+        None, "--provider", help="LLM provider: anthropic, openai, ollama (auto-detect if omitted)"
+    ),
     output: str = typer.Option("output", "--output", "-o", help="Output directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging"),
     step_delay: float = typer.Option(1.5, "--step-delay", help="Delay between steps (seconds)"),
     record: bool = typer.Option(False, "--record", help="Record screen video"),
     no_reset: bool = typer.Option(False, "--no-reset", help="Skip app reset before run"),
-    app_path: Optional[str] = typer.Option(None, "--app-path", help="Path to .app for reinstall"),
+    app_path: str | None = typer.Option(None, "--app-path", help="Path to .app for reinstall"),
     backend: str = typer.Option("testbridge", "--backend", "-b", help="Device backend: testbridge or xcodebuildmcp"),
-    no_vision: bool = typer.Option(False, "--no-vision", help="Skip sending screenshots to LLM (use accessibility tree only, faster)"),
-    vision_model: Optional[str] = typer.Option(None, "--vision-model", help="Vision model for fallback when stuck (e.g. gemma3:4b, qwen3-vl)"),
+    no_vision: bool = typer.Option(
+        False, "--no-vision", help="Skip sending screenshots to LLM (use accessibility tree only, faster)"
+    ),
+    vision_model: str | None = typer.Option(
+        None, "--vision-model", help="Vision model for fallback when stuck (e.g. gemma3:4b, qwen3-vl)"
+    ),
 ) -> None:
     """Run an AI agent to test an iOS app with a natural language goal."""
     setup_logging(verbose)
@@ -111,11 +114,9 @@ def scenario(
     scenario_file: str = typer.Argument(..., help="Path to scenario YAML file"),
     output: str = typer.Option("output", "--output", "-o", help="Base output directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging"),
-    backend: Optional[str] = typer.Option(
-        None, "--backend", "-b", help="Override backend: testbridge or xcodebuildmcp"
-    ),
-    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider override"),
-    model: Optional[str] = typer.Option(None, "--model", help="LLM model override"),
+    backend: str | None = typer.Option(None, "--backend", "-b", help="Override backend: testbridge or xcodebuildmcp"),
+    provider: str | None = typer.Option(None, "--provider", help="LLM provider override"),
+    model: str | None = typer.Option(None, "--model", help="LLM model override"),
 ) -> None:
     """Run a multi-device scenario from a YAML file."""
     from pydantic import ValidationError
@@ -130,10 +131,10 @@ def scenario(
         sc = load_scenario(scenario_file)
     except FileNotFoundError as exc:
         console.print(f"[red]Scenario file not found: {exc}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     except ValidationError as exc:
         console.print(f"[red]Invalid scenario YAML:[/red]\n{exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     # Apply CLI overrides
     if backend is not None:
@@ -249,9 +250,7 @@ def doctor() -> None:
             timeout=10,
         )
         data = json.loads(raw.stdout)
-        device_count = sum(
-            len(devs) for devs in data.get("devices", {}).values()
-        )
+        device_count = sum(len(devs) for devs in data.get("devices", {}).values())
         if device_count > 0:
             console.print(f"  Simulators: [green]{device_count} available[/green]")
         else:
@@ -277,6 +276,7 @@ def doctor() -> None:
     # Check Ollama
     try:
         import urllib.request
+
         req = urllib.request.Request("http://localhost:11434/api/version", method="GET")
         with urllib.request.urlopen(req, timeout=2):
             console.print("  Ollama:    [green]Running locally[/green]")

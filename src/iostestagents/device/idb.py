@@ -25,28 +25,20 @@ class IDBDevice:
         cmd = ["idb", *args, "--udid", self.udid]
         logger.debug(f"Running: {' '.join(cmd)}")
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except FileNotFoundError as exc:
-            raise IDBError(
-                "idb not found. Install with: pip install fb-idb"
-            ) from exc
+            raise IDBError("idb not found. Install with: pip install fb-idb") from exc
         except subprocess.TimeoutExpired as exc:
             raise IDBError(f"idb command timed out: {' '.join(cmd)}") from exc
 
         if result.returncode != 0:
-            raise IDBError(
-                f"idb failed (rc={result.returncode}): {result.stderr.strip()}"
-            )
+            raise IDBError(f"idb failed (rc={result.returncode}): {result.stderr.strip()}")
         return result.stdout
 
     def _run_simctl_fallback(self, args: list[str]) -> str:
         cmd = ["xcrun", "simctl", *args]
         logger.debug(f"Running fallback: {' '.join(cmd)}")
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=COMMAND_TIMEOUT
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=COMMAND_TIMEOUT)
         return result.stdout
 
     def describe_ui(self) -> str:
@@ -62,9 +54,7 @@ class IDBDevice:
         except IDBError as exc:
             logger.warning(f"idb describe-all failed: {exc}, using simctl fallback")
 
-        fallback = self._run_simctl_fallback(
-            ["ui", self.udid, "describe"]
-        )
+        fallback = self._run_simctl_fallback(["ui", self.udid, "describe"])
         return fallback.strip() if fallback else ""
 
     def tap(self, x: int, y: int) -> None:
@@ -88,9 +78,7 @@ class IDBDevice:
     def is_installed() -> bool:
         """Check if idb CLI is available."""
         try:
-            result = subprocess.run(
-                ["idb", "--help"], capture_output=True, timeout=5
-            )
+            result = subprocess.run(["idb", "--help"], capture_output=True, timeout=5)
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False

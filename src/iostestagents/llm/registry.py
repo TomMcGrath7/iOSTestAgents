@@ -16,9 +16,7 @@ ENV_KEYS: dict[str, str | None] = {
 
 def _ollama_available() -> bool:
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/version", method="GET"
-        )
+        req = urllib.request.Request("http://localhost:11434/api/version", method="GET")
         with urllib.request.urlopen(req, timeout=2):
             return True
     except Exception:
@@ -55,7 +53,4 @@ def get_provider(name: str | None = None) -> LLMProvider:
     if _ollama_available():
         return _create_provider("ollama")
 
-    raise RuntimeError(
-        "No LLM provider available. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, "
-        "or start Ollama locally."
-    )
+    raise RuntimeError("No LLM provider available. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or start Ollama locally.")

@@ -23,13 +23,24 @@ class TestXcodeBuildMCPDevice:
         device = XcodeBuildMCPDevice("test-udid")
         with patch.object(device, "_run") as mock_run:
             device.swipe(0, 100, 200, 300, 0.5)
-            mock_run.assert_called_once_with([
-                "ui-automation", "swipe",
-                "--x1", "0", "--y1", "100",
-                "--x2", "200", "--y2", "300",
-                "--duration", "0.5",
-                "--simulator-id", "test-udid",
-            ])
+            mock_run.assert_called_once_with(
+                [
+                    "ui-automation",
+                    "swipe",
+                    "--x1",
+                    "0",
+                    "--y1",
+                    "100",
+                    "--x2",
+                    "200",
+                    "--y2",
+                    "300",
+                    "--duration",
+                    "0.5",
+                    "--simulator-id",
+                    "test-udid",
+                ]
+            )
 
     def test_type_text_runs_correct_command(self):
         device = XcodeBuildMCPDevice("test-udid")
@@ -51,9 +62,7 @@ class TestXcodeBuildMCPDevice:
         device = XcodeBuildMCPDevice("test-udid")
         with patch.object(device, "_run", return_value="AXButton 'Test'") as mock_run:
             result = device.describe_ui()
-            mock_run.assert_called_once_with(
-                ["ui-automation", "snapshot-ui", "--simulator-id", "test-udid"]
-            )
+            mock_run.assert_called_once_with(["ui-automation", "snapshot-ui", "--simulator-id", "test-udid"])
             assert result == "AXButton 'Test'"
 
     def test_run_raises_on_missing_binary(self):

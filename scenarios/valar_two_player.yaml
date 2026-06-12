@@ -5,7 +5,7 @@ players: 2
 device: "iPhone 17"
 backend: testbridge
 provider: openai
-model: gpt-4o
+model: gpt-5.4
 max_steps: 40
 on_failure: continue
 

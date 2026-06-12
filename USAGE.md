@@ -96,7 +96,7 @@ uv run iostestagents run [OPTIONS]
 | `--app` | `-a` | App bundle identifier (required) |
 | `--goal` | `-g` | What to test, in plain English (required) |
 | `--backend` | `-b` | `testbridge` or `xcodebuildmcp` (default: `testbridge`) |
-| `--model` | | LLM model override (e.g. `qwen3:8b`, `qwen3-vl`, `claude-sonnet-4-5-20250929`) |
+| `--model` | | LLM model override (e.g. `qwen3:8b`, `qwen3-vl`, `claude-haiku-4-5` for cheap per-step costs) |
 | `--provider` | | Force LLM provider: `anthropic`, `openai`, `ollama` |
 | `--no-vision` | | Skip sending screenshots to the LLM (use accessibility tree only, much faster) |
 | `--max-steps` | | Max agent actions before giving up (default: 20) |

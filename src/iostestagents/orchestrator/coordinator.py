@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC
 from pathlib import Path
 
 from iostestagents.agent.loop import run_agent
@@ -54,10 +55,12 @@ class Orchestrator:
 
     def run(self) -> OrchestratorResult:
         """Run the scenario. Returns OrchestratorResult with full report."""
-        self._result.timeline.append(TimelineEvent(
-            event_type="start",
-            detail=f"Scenario: {self._scenario.name}, players: {self._scenario.players}",
-        ))
+        self._result.timeline.append(
+            TimelineEvent(
+                event_type="start",
+                detail=f"Scenario: {self._scenario.name}, players: {self._scenario.players}",
+            )
+        )
 
         try:
             self._allocate_devices()
@@ -65,20 +68,24 @@ class Orchestrator:
 
             for step_idx, step in enumerate(self._scenario.steps):
                 if self._abort.is_aborted():
-                    self._result.timeline.append(TimelineEvent(
-                        event_type="abort",
-                        detail=self._abort.reason,
-                    ))
+                    self._result.timeline.append(
+                        TimelineEvent(
+                            event_type="abort",
+                            detail=self._abort.reason,
+                        )
+                    )
                     break
 
                 player_nums = step.player_list(self._scenario.players)
                 is_parallel = step.parallel or (step.is_all_players() and len(player_nums) > 1)
 
-                self._result.timeline.append(TimelineEvent(
-                    event_type="step_start",
-                    step_index=step_idx,
-                    detail=f"players={player_nums}, parallel={is_parallel}",
-                ))
+                self._result.timeline.append(
+                    TimelineEvent(
+                        event_type="step_start",
+                        step_index=step_idx,
+                        detail=f"players={player_nums}, parallel={is_parallel}",
+                    )
+                )
 
                 if is_parallel and len(player_nums) > 1:
                     self._run_step_parallel(step, step_idx, player_nums)
@@ -141,9 +148,11 @@ class Orchestrator:
         backend_name = self._scenario.backend
         if backend_name == "xcodebuildmcp":
             from iostestagents.device.xcodebuildmcp import XcodeBuildMCPDevice
+
             return XcodeBuildMCPDevice(udid, bundle_id=bundle_id)
         elif backend_name == "testbridge":
-            from iostestagents.device.bridge import BridgeDevice, BRIDGE_PORT
+            from iostestagents.device.bridge import BRIDGE_PORT, BridgeDevice
+
             port = BRIDGE_PORT + len(self._backends)
             return BridgeDevice(udid, bundle_id=bundle_id, port=port)
         else:
@@ -157,9 +166,7 @@ class Orchestrator:
                 device_udid=self._udids.get(player_num, ""),
             )
 
-    def _run_step_for_player(
-        self, step: ScenarioStep, step_idx: int, player_num: int
-    ) -> RunResult:
+    def _run_step_for_player(self, step: ScenarioStep, step_idx: int, player_num: int) -> RunResult:
         """Run a single scenario step for one player. Returns RunResult (never raises)."""
         goal = step.build_goal(self._var_store.snapshot())
         device_info = self._device_infos[player_num]
@@ -167,9 +174,7 @@ class Orchestrator:
         player_output_dir.mkdir(parents=True, exist_ok=True)
         max_steps = step.max_steps or self._scenario.max_steps
 
-        logger.info(
-            f"Player {player_num} step {step_idx}: goal={goal!r}, max_steps={max_steps}"
-        )
+        logger.info(f"Player {player_num} step {step_idx}: goal={goal!r}, max_steps={max_steps}")
 
         try:
             return run_agent(
@@ -192,15 +197,10 @@ class Orchestrator:
             logger.error(f"Player {player_num} step {step_idx} raised exception: {exc}")
             return RunResult(status="error", message=str(exc), goal=goal)
 
-    def _run_step_parallel(
-        self, step: ScenarioStep, step_idx: int, player_nums: list[int]
-    ) -> None:
+    def _run_step_parallel(self, step: ScenarioStep, step_idx: int, player_nums: list[int]) -> None:
         """Run a step for multiple players in parallel; block until all complete."""
         with ThreadPoolExecutor(max_workers=len(player_nums)) as executor:
-            futures = {
-                executor.submit(self._run_step_for_player, step, step_idx, p): p
-                for p in player_nums
-            }
+            futures = {executor.submit(self._run_step_for_player, step, step_idx, p): p for p in player_nums}
             # Process results in the main thread as each future completes (as_completed loop)
             for future in as_completed(futures):
                 p = futures[future]
@@ -227,12 +227,14 @@ class Orchestrator:
         self._result.total_tokens.input_tokens += run_result.total_tokens.input_tokens
         self._result.total_tokens.output_tokens += run_result.total_tokens.output_tokens
 
-        self._result.timeline.append(TimelineEvent(
-            event_type="step_complete",
-            player=player_num,
-            step_index=step_idx,
-            detail=f"status={run_result.status}",
-        ))
+        self._result.timeline.append(
+            TimelineEvent(
+                event_type="step_complete",
+                player=player_num,
+                step_index=step_idx,
+                detail=f"status={run_result.status}",
+            )
+        )
 
         # Variable capture on success
         if run_result.status == "success" and step.capture:
@@ -240,15 +242,10 @@ class Orchestrator:
 
         # Fail-fast on non-success
         if run_result.status != "success":
-            effective_on_failure = (
-                step.on_failure
-                if step.on_failure is not None
-                else self._scenario.on_failure
-            )
+            effective_on_failure = step.on_failure if step.on_failure is not None else self._scenario.on_failure
             if effective_on_failure == "fail_fast" and not self._abort.is_aborted():
                 reason = (
-                    f"Player {player_num} step {step_idx} failed "
-                    f"(status={run_result.status}): {run_result.message}"
+                    f"Player {player_num} step {step_idx} failed (status={run_result.status}): {run_result.message}"
                 )
                 self._abort.abort(reason)
                 logger.warning(f"Fail-fast triggered: {reason}")
@@ -265,8 +262,7 @@ class Orchestrator:
             return
         if not run_result.steps:
             logger.warning(
-                f"No steps in result for player {player_num} step {step_idx} "
-                f"— cannot capture {step.capture!r}"
+                f"No steps in result for player {player_num} step {step_idx} — cannot capture {step.capture!r}"
             )
             return
 
@@ -300,12 +296,14 @@ class Orchestrator:
             if extracted:
                 self._var_store.set(step.capture, extracted)
                 self._result.captured_variables[step.capture] = extracted
-                self._result.timeline.append(TimelineEvent(
-                    event_type="variable_captured",
-                    player=player_num,
-                    step_index=step_idx,
-                    detail=f"{step.capture}={extracted!r}",
-                ))
+                self._result.timeline.append(
+                    TimelineEvent(
+                        event_type="variable_captured",
+                        player=player_num,
+                        step_index=step_idx,
+                        detail=f"{step.capture}={extracted!r}",
+                    )
+                )
                 logger.info(f"Captured variable {step.capture!r} = {extracted!r}")
             else:
                 logger.warning(f"LLM returned empty extraction for {step.capture!r}")
@@ -322,8 +320,9 @@ class Orchestrator:
 
     def _finalize_result(self) -> None:
         """Compute per-player and overall status, and estimated cost."""
-        from datetime import datetime, timezone
-        self._result.finished_at = datetime.now(timezone.utc).isoformat()
+        from datetime import datetime
+
+        self._result.finished_at = datetime.now(UTC).isoformat()
 
         # Per-player status
         for player_result in self._result.players.values():

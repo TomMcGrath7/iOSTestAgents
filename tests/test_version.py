@@ -57,7 +57,10 @@ def _newest_tag() -> str | None:
     try:
         out = subprocess.run(
             ["git", "tag", "--list", "v*", "--sort=-v:refname"],
-            cwd=ROOT, capture_output=True, text=True, timeout=10,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None

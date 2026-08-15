@@ -4,7 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iostestagents"
-version = "0.2.0"
+# Single source of truth: `src/iostestagents/__init__.py`. The number lived
+# here as well and the two drifted apart: this said 0.2.0, the module said
+# 0.1.0. Bump one, forget the other.
+dynamic = ["version"]
 description = "AI-powered iOS app testing framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -47,6 +50,9 @@ dev = [
 
 [project.scripts]
 iostestagents = "iostestagents.cli:app"
+
+[tool.hatch.version]
+path = "src/iostestagents/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/iostestagents"]

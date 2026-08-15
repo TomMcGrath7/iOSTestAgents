@@ -114,6 +114,24 @@ uv run iostestagents run \
 uv run iostestagents orchestrate scenarios/multiplayer_example.yaml
 ```
 
+## Releasing
+
+The version lives in **one** place, `src/iostestagents/__init__.py`, and
+`pyproject.toml` reads it from there via `[tool.hatch.version]`. It used to live
+in both and they drifted: the module said 0.1.0 while the metadata said 0.2.0.
+Never add a `version =` back to `[project]`; `tests/test_version.py` asserts it
+stays gone.
+
+To cut a release:
+
+1. Bump `__version__` **in the same commit as the change**, not afterwards.
+2. Add a `## <version>` section to `CHANGELOG.md`. A test requires one, because
+   a version nobody can tell apart from the last one is not a release.
+3. Merge to `main`.
+4. **Tag the merged commit**, not the branch tip: `git tag vX.Y.Z && git push --tags`.
+   `tests/test_version.py` compares `__version__` to the newest tag, so a tag cut
+   before the bump fails the suite on the next run rather than silently shipping.
+
 ## Conventions
 - Python 3.11+ with type hints
 - `uv` for deps (`uv sync`, `uv add`, `uv run`)

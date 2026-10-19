@@ -11,6 +11,7 @@ import pytest
 from iostestagents.agent.models import ActionType, AgentAction
 from iostestagents.llm.anthropic import AnthropicProvider, get_model_pricing
 from iostestagents.llm.base import LLMResponse, StructuredLLMResponse
+from iostestagents.llm.claude_cli import ClaudeCliProvider
 from iostestagents.llm.ollama import OllamaProvider, _translate_to_ollama_content
 from iostestagents.llm.openai import OpenAIProvider, _translate_content
 from iostestagents.llm.registry import get_provider
@@ -294,6 +295,76 @@ class TestOllamaChat:
         with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
             with pytest.raises(RuntimeError, match="not reachable"):
                 p.chat("qwen3:8b", "sys", [{"type": "text", "text": "t"}], 1024)
+
+
+def _claude_cli_stdout(result: str, is_error: bool = False) -> str:
+    events = [
+        {"type": "system", "subtype": "init"},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": result}]}},
+        {
+            "type": "result",
+            "is_error": is_error,
+            "result": result,
+            "usage": {"input_tokens": 120, "output_tokens": 15, "cache_read_input_tokens": 40},
+        },
+    ]
+    return "\n".join(json.dumps(e) for e in events) + "\n"
+
+
+class TestClaudeCliChat:
+    @patch("iostestagents.llm.claude_cli.shutil.which", return_value="/usr/local/bin/claude")
+    def test_chat_passes_content_blocks_and_reads_result(self, _which):
+        p = ClaudeCliProvider()
+        content = [
+            {"type": "text", "text": "UI tree"},
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "abc"}},
+        ]
+        proc = MagicMock(returncode=0, stdout=_claude_cli_stdout('{"action": "done"}'), stderr="")
+        with patch("iostestagents.llm.claude_cli.subprocess.run", return_value=proc) as mock_run:
+            result = p.chat("sonnet", "system prompt", content, 1024)
+
+        assert result.text == '{"action": "done"}'
+        assert result.input_tokens == 120
+        assert result.output_tokens == 15
+        assert result.cache_read_input_tokens == 40
+
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:2] == ["claude", "-p"]
+        assert cmd[cmd.index("--model") + 1] == "sonnet"
+        assert cmd[cmd.index("--system-prompt") + 1] == "system prompt"
+        assert cmd[cmd.index("--tools") + 1] == ""
+        sent = json.loads(mock_run.call_args.kwargs["input"])
+        assert sent["message"]["content"] == content
+
+    @patch("iostestagents.llm.claude_cli.shutil.which", return_value="/usr/local/bin/claude")
+    def test_chat_raises_on_error_result(self, _which):
+        p = ClaudeCliProvider()
+        proc = MagicMock(returncode=1, stdout=_claude_cli_stdout("Not logged in", is_error=True), stderr="")
+        with patch("iostestagents.llm.claude_cli.subprocess.run", return_value=proc):
+            with pytest.raises(RuntimeError, match="Not logged in"):
+                p.chat("sonnet", "sys", [{"type": "text", "text": "t"}], 1024)
+
+    @patch("iostestagents.llm.claude_cli.shutil.which", return_value="/usr/local/bin/claude")
+    def test_chat_raises_when_no_result_event(self, _which):
+        p = ClaudeCliProvider()
+        proc = MagicMock(returncode=1, stdout="", stderr="boom")
+        with patch("iostestagents.llm.claude_cli.subprocess.run", return_value=proc):
+            with pytest.raises(RuntimeError, match="boom"):
+                p.chat("sonnet", "sys", [{"type": "text", "text": "t"}], 1024)
+
+    @patch("iostestagents.llm.claude_cli.shutil.which", return_value=None)
+    def test_missing_cli_raises(self, _which):
+        with pytest.raises(RuntimeError, match="not on PATH"):
+            ClaudeCliProvider()
+
+    @patch("iostestagents.llm.claude_cli.shutil.which", return_value="/usr/local/bin/claude")
+    def test_defaults_and_free(self, _which):
+        p = ClaudeCliProvider()
+        assert p.name == "claude-cli"
+        assert p.default_model == "sonnet"
+        assert p.supports_structured_output is False
+        assert p.estimate_cost("sonnet", 10_000, 10_000) == 0.0
+        assert isinstance(get_provider("claude-cli"), ClaudeCliProvider)
 
 
 class TestRegistry:

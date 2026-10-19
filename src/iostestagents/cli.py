@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def run(
     max_steps: int = typer.Option(20, "--max-steps", help="Maximum agent steps"),
     model: str | None = typer.Option(None, "--model", help="LLM model to use (default per provider)"),
     provider: str | None = typer.Option(
-        None, "--provider", help="LLM provider: anthropic, openai, ollama (auto-detect if omitted)"
+        None, "--provider", help="LLM provider: anthropic, openai, ollama, claude-cli (auto-detect if omitted)"
     ),
     output: str = typer.Option("output", "--output", "-o", help="Output directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging"),
@@ -283,6 +284,12 @@ def doctor() -> None:
             any_provider = True
     except Exception:
         console.print("  Ollama:    [dim]Not running[/dim]")
+
+    if shutil.which("claude"):
+        console.print("  Claude CLI: [green]on PATH[/green] (--provider claude-cli, billed to the subscription)")
+        any_provider = True
+    else:
+        console.print("  Claude CLI: [dim]not on PATH[/dim]")
 
     if not any_provider:
         console.print("  [red]No LLM providers available[/red]")

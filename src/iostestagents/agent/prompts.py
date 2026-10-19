@@ -8,6 +8,7 @@ Reply with ONLY a JSON object.
 
 Actions:
 - Tap element by number: {"action": "tap", "element": 3, "reasoning": "why"}
+- Tap a point on screen, ONLY when there is no element list: {"action": "tap", "x": 200, "y": 790, "reasoning": "why"}
 - Swipe: {"action": "swipe_up", "reasoning": "why"} (also swipe_down, swipe_left, swipe_right)
 - Tap a text field AND type into it: {"action": "tap_and_type", "element": 5, "text": "hello", "reasoning": "why"}
 - Type into already-focused field: {"action": "type", "text": "hello", "reasoning": "why"}
@@ -36,6 +37,7 @@ def build_user_prompt(
     ui_stuck: bool = False,
     element_list: str = "",
     screen_title: str = "",
+    screen_size: tuple[int, int] | None = None,
 ) -> str:
     parts = [f"**Goal**: {goal}", f"**Step**: {step}/{max_steps}"]
 
@@ -65,6 +67,16 @@ def build_user_prompt(
 
     if element_list:
         parts.append(f"**Tappable elements** (use element number to tap):\n{element_list}")
+    elif screen_size:
+        # A system sheet or alert (permissions, Health, share sheets) is drawn
+        # outside the app, so its buttons are missing from the app's tree.
+        width, height = screen_size
+        parts.append(
+            "**No tappable elements were found.** This is usually a system sheet or alert "
+            "drawn outside the app, so element numbers will not work. Use the screenshot: "
+            f"tap by x/y in screen points. The screen is {width}x{height} points and the "
+            "screenshot covers all of it, so scale the screenshot's proportions to points."
+        )
 
     parts.append("Decide the next action. Respond with JSON only.")
 

@@ -28,7 +28,8 @@ src/iostestagents/
 │   ├── registry.py               # Auto-detect provider from env
 │   ├── anthropic.py              # Claude (ANTHROPIC_API_KEY)
 │   ├── openai.py                 # GPT (OPENAI_API_KEY)
-│   └── ollama.py                 # Local Ollama
+│   ├── ollama.py                 # Local Ollama
+│   └── claude_cli.py             # Local `claude -p` (subscription)
 ├── orchestrator/
 │   ├── coordinator.py            # N agents × N simulators
 │   ├── scenario.py               # YAML scenario parser
@@ -64,6 +65,9 @@ Auto-detected from environment via `llm/registry.py`:
 1. `ANTHROPIC_API_KEY` set → Anthropic (Claude)
 2. `OPENAI_API_KEY` set → OpenAI (GPT)
 3. Ollama running on localhost:11434 → Ollama
+
+`claude-cli` (the local `claude -p`, billed to a Claude subscription) is never
+auto-detected; pass `--provider claude-cli`.
 
 Override with `--llm` CLI flag.
 

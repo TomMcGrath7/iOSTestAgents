@@ -11,6 +11,7 @@ ENV_KEYS: dict[str, str | None] = {
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "ollama": None,
+    "claude-cli": None,
 }
 
 
@@ -36,8 +37,12 @@ def _create_provider(name: str) -> LLMProvider:
         from iostestagents.llm.ollama import OllamaProvider
 
         return OllamaProvider()
+    elif name == "claude-cli":
+        from iostestagents.llm.claude_cli import ClaudeCliProvider
+
+        return ClaudeCliProvider()
     else:
-        raise ValueError(f"Unknown provider: {name!r}. Choose from: anthropic, openai, ollama")
+        raise ValueError(f"Unknown provider: {name!r}. Choose from: anthropic, openai, ollama, claude-cli")
 
 
 def get_provider(name: str | None = None) -> LLMProvider:

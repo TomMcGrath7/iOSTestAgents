@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.3.0 (2026-10-19)
+
+Found by running the agent against ThoughtScape, an on-device iOS app.
+
+- **`claude-cli` provider**: `--provider claude-cli` runs each step through the
+  local `claude -p`, billed to a Claude subscription instead of per token. It
+  takes the loop's content blocks (text and screenshots) as they are, with no
+  tools, no user settings and no MCP servers. Never auto-detected: pass it.
+- **System sheets**: a sheet drawn outside the app (Health access, permission
+  alerts) leaves the app's accessibility tree empty, and the agent spent all 40
+  steps tapping element numbers that did not exist. With nothing tappable, the
+  step now always carries the screenshot and the prompt offers tapping by x/y
+  in screen points.
+- **Off-screen elements**: an element below the fold was tapped at its
+  off-screen center, which landed on whatever sat at the screen edge (a Pro row
+  that opened a paywall). Off-screen elements are now listed but marked, and
+  cannot be tapped until the agent scrolls them into view.
+
 ## 0.2.0 (2026-06-12)
 
 LLM layer modernization.

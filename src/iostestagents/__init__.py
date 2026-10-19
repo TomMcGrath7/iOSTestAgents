@@ -5,4 +5,4 @@
 # `iostestagents.__version__` disagreed with the installed metadata under the
 # v0.2.0 tag. Bump it in the same commit as the change, then tag; see the
 # release checklist in CLAUDE.md.
-__version__ = "0.2.0"
+__version__ = "0.3.0"

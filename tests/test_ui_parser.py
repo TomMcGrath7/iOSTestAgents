@@ -87,6 +87,21 @@ class TestBuildElementList:
         assert "Button" in result
         assert "Cell" in result
 
+    def test_off_screen_element_is_marked_and_not_tappable(self):
+        """A 'Done' button below the fold resolved to y=1018 on an 874pt screen,
+        and the tap landed on a Pro row at the bottom edge, opening a paywall."""
+        elements = [
+            UIElement(1, "Button", "Cancel", 20, 80, 80, 40, 60, 100),
+            UIElement(2, "Button", "Done", 20, 998, 360, 40, 200, 1018),
+        ]
+        result, shown = build_element_list(elements, screen_height=874)
+        assert shown == {1}
+        assert "[2] Button 'Done'" in result
+        assert "OFF-SCREEN" in result
+        assert "swipe_up" in result
+        cancel_line = next(line for line in result.splitlines() if "'Cancel'" in line)
+        assert "OFF-SCREEN" not in cancel_line
+
 
 class TestResolveElement:
     def test_resolve_by_index(self):

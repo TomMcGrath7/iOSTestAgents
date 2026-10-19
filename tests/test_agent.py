@@ -99,6 +99,23 @@ class TestPrompts:
         )
         assert "Tappable elements" in prompt
         assert "[1] Button 'OK'" in prompt
+        assert "No tappable elements" not in prompt
+
+    def test_build_user_prompt_without_elements_offers_coordinates(self):
+        """A system sheet (e.g. Health access) is outside the app's tree: the
+        agent must be told to tap by point, not loop on element numbers."""
+        prompt = build_user_prompt(
+            goal="test",
+            step=1,
+            max_steps=10,
+            action_history=[],
+            ui_state="tree",
+            element_list="",
+            screen_size=(402, 874),
+        )
+        assert "No tappable elements" in prompt
+        assert "402x874 points" in prompt
+        assert '"x"' in SYSTEM_PROMPT
 
     def test_build_user_prompt_with_error_in_history(self):
         history = [{"action": "tap", "reasoning": "try", "error": "element not found"}]

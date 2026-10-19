@@ -66,7 +66,7 @@ class TestDoctorCommand:
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
         env.pop("OPENAI_API_KEY", None)
-        with patch.dict(os.environ, env, clear=True):
+        with patch.dict(os.environ, env, clear=True), patch("iostestagents.cli.shutil.which", return_value=None):
             result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 1
         assert "No LLM providers available" in result.output

@@ -220,6 +220,10 @@ def build_element_list(
     wasting slots. Prioritizes action buttons.
     Caps at max_elements to avoid overwhelming small models.
 
+    An element whose center lies outside the screen is listed but marked
+    off-screen and left out of the returned indices: a tap there lands on
+    whatever sits at the screen edge instead, so the agent must scroll first.
+
     Returns (formatted_text, set_of_shown_element_indices).
     """
     # Separate elements into priority tiers
@@ -268,9 +272,16 @@ def build_element_list(
         else:
             regular.append(el)
 
+    def _on_screen(el: UIElement) -> bool:
+        return 0 <= el.center_y <= screen_height
+
     def _format(el: UIElement) -> str:
         traits_part = f" {el.traits}" if el.traits else ""
-        return f"[{el.index}] {el.element_type} '{el.label}' center=({el.center_x}, {el.center_y}){traits_part}"
+        line = f"[{el.index}] {el.element_type} '{el.label}' center=({el.center_x}, {el.center_y}){traits_part}"
+        if not _on_screen(el):
+            scroll = "swipe_up" if el.center_y > screen_height else "swipe_down"
+            line += f" OFF-SCREEN, cannot be tapped: {scroll} to bring it into view first"
+        return line
 
     lines = []
     shown_indices: set[int] = set()
@@ -278,13 +289,15 @@ def build_element_list(
     # Always include action buttons first (they're most important)
     for el in action_buttons:
         lines.append(_format(el))
-        shown_indices.add(el.index)
+        if _on_screen(el):
+            shown_indices.add(el.index)
 
     # Fill remaining slots with regular elements
     remaining = max_elements - len(lines)
     for el in regular[:remaining]:
         lines.append(_format(el))
-        shown_indices.add(el.index)
+        if _on_screen(el):
+            shown_indices.add(el.index)
 
     total_tappable = len(action_buttons) + len(regular)
     if total_tappable > max_elements:

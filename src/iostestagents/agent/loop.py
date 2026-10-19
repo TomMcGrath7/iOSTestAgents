@@ -127,7 +127,10 @@ def _execute_action(
     match action.action:
         case ActionType.TAP:
             if action.x is None or action.y is None:
-                raise DeviceError(f"tap action missing coordinates (x={action.x}, y={action.y})")
+                raise DeviceError(
+                    f"tap action missing coordinates (x={action.x}, y={action.y}): "
+                    "the element was off-screen or not in the list, so scroll or pick a listed one"
+                )
             backend.tap(action.x, action.y)
         case ActionType.SWIPE_UP:
             backend.swipe(cx, cy + vert_offset, cx, cy - vert_offset)
@@ -277,7 +280,7 @@ def run_agent(
 
             # 3. Parse UI elements and build numbered list
             ui_elements = parse_ui_elements(ui_state)
-            element_list, shown_element_indices = build_element_list(ui_elements)
+            element_list, shown_element_indices = build_element_list(ui_elements, screen_height=screen_height)
             screen_title = detect_screen_title(ui_elements)
             tappable_count = element_list.count(chr(10)) + 1 if element_list else 0
             logger.info(f"Parsed {len(ui_elements)} UI elements, {tappable_count} tappable, screen='{screen_title}'")
@@ -319,11 +322,13 @@ def run_agent(
                 ui_stuck=ui_stuck or repeat_count >= 2,
                 element_list=element_list,
                 screen_title=screen_title,
+                screen_size=(screen_width, screen_height),
             )
 
             messages_content: list[dict] = []
-            # Send screenshot if: always-on vision, OR vision fallback when stuck
-            if (vision or use_vision_fallback) and step.screenshot_path:
+            # Send screenshot if: always-on vision, OR vision fallback when stuck,
+            # OR nothing is tappable (a system sheet the tree cannot see)
+            if (vision or use_vision_fallback or not element_list) and step.screenshot_path:
                 image_data = _encode_image(screenshot_path)
                 messages_content.append(
                     {

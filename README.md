@@ -69,7 +69,7 @@ uv run iostestagents doctor
 
 ## Setting Up an LLM Provider
 
-MobileTestAI needs an LLM to read the UI and decide actions. It supports three providers and auto-detects which one to use based on available API keys.
+MobileTestAI needs an LLM to read the UI and decide actions. It supports four providers and auto-detects the first three from available API keys (or a running Ollama). The fourth, the Claude CLI, is picked by name.
 
 ### Option 1: Ollama (local, free)
 
@@ -108,6 +108,19 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 Get your API key at [console.anthropic.com](https://console.anthropic.com/).
 
+### Option 4: Claude CLI (Claude subscription)
+
+If you have Claude Code installed and logged in, each step can run through the local
+`claude -p` instead of the API, billed to your Claude subscription rather than per token.
+It is never auto-detected, so pass it explicitly:
+
+```bash
+uv run iostestagents run --provider claude-cli --model sonnet ...
+```
+
+Each step starts a fresh CLI process, so it is slower per step (around 3 to 6s) than a
+direct API call. The CLI runs with no tools, no settings and no MCP servers: it only answers.
+
 ### Choosing a provider
 
 | Provider | Cost | Speed | Quality | Privacy |
@@ -123,6 +136,7 @@ You can override the auto-detected provider with `--provider` and `--model`:
 uv run iostestagents run --provider ollama --model qwen3:8b ...
 uv run iostestagents run --provider openai --model gpt-5.4 ...
 uv run iostestagents run --provider anthropic --model claude-haiku-4-5 ...  # cheap per-step option
+uv run iostestagents run --provider claude-cli --model sonnet ...           # Claude subscription
 ```
 
 ## Quick Start

@@ -213,18 +213,24 @@ iostestagents run
   --goal, -g      Natural language test goal (required)
   --max-steps     Maximum agent steps (default: 20)
   --backend, -b   Device backend: xcodebuildmcp or testbridge (default: testbridge)
-  --provider      LLM provider: openai, anthropic, ollama (auto-detect if omitted)
+  --provider      LLM provider: openai, anthropic, ollama, claude-cli (auto-detect if omitted)
   --model         LLM model to use (default per provider)
   --output, -o    Output directory (default: output)
   --verbose, -v   Verbose logging
   --step-delay    Delay between steps in seconds (default: 1.5)
   --record        Record screen video
   --no-reset      Skip app reset before run
-  --app-path      Path to .app bundle for install
+  --app-path      Path to .app bundle for reinstall
   --no-vision     Skip screenshots, use accessibility tree only (faster)
+  --vision-model  Vision model for fallback when stuck (e.g. gemma3:4b, qwen3-vl)
 
 iostestagents scenario <path>
   Run a multi-device YAML scenario file
+  --output, -o    Base output directory (default: output)
+  --verbose, -v   Verbose logging
+  --backend, -b   Override the scenario's backend: testbridge or xcodebuildmcp
+  --provider      Override the scenario's LLM provider
+  --model         Override the scenario's LLM model
 
 iostestagents doctor
   Check environment setup and backend availability
@@ -279,6 +285,7 @@ src/iostestagents/
 │   ├── openai.py             # OpenAI provider
 │   ├── anthropic.py          # Anthropic provider
 │   ├── ollama.py             # Ollama (local) provider
+│   ├── claude_cli.py         # Local `claude -p` (Claude subscription)
 │   └── registry.py           # Provider auto-detection
 ├── orchestrator/             # Multi-device coordination
 │   ├── coordinator.py
